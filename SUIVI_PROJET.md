@@ -76,3 +76,16 @@ Quand la version statique est stable, migrer vers SQLite/Supabase/PostgreSQL ave
 - Les ajouts File OS et Finance suivent la même logique : sauvegarde locale puis export XML/CSV.
 - Certaines vidéos YouTube peuvent refuser l'intégration selon les paramètres du propriétaire.
 - Les embeds TikTok/Instagram devront être ajoutés dans une tâche séparée après stabilisation YouTube.
+
+## Travail réalisé le 09 juin 2026
+
+Le travail effectué couvre une étape complète d'expansion, pas tout le plan directeur.
+
+- La fondation vidéo, XML et Studio minimal existait déjà dans le projet au moment de l'intervention.
+- Le File OS a été transformé en module utilisable : `data/workspace.xml`, dossiers, items, statuts, tags, recherche, vues grille/liste, ajout local `localStorage` et export XML.
+- Le cockpit Finance a été transformé en module utilisable : `data/finance.xml`, revenus, dépenses, solde, transactions, objectifs, ajout local `localStorage` et export CSV/XML.
+- `README.md` a été mis à jour pour documenter les nouveaux fichiers XML, les exports et la vérification.
+- Le projet a été vérifié avec `npm run check:js`, testé en serveur local HTTP, puis poussé sur `origin/main`.
+- GitHub Pages a reconstruit le site avec succès après le push.
+
+Ce qui reste à faire : Studio avancé complet, édition/suppression, drag and drop, import XML, graphiques finance, tests Playwright, puis migration backend/SQL.

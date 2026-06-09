@@ -91,11 +91,33 @@ Elle permet :
 - créer, modifier, supprimer et réordonner des playlists ;
 - créer, modifier, supprimer, déplacer et réordonner des vidéos ;
 - voir les vidéos importées non classées ;
+- distinguer les vidéos importées `Non classée` et `Ajoutée à ...` ;
 - ajouter une vidéo importée à une playlist existante ;
 - créer une nouvelle playlist depuis une vidéo importée ;
 - exporter un nouveau XML.
 
 GitHub Pages ne peut pas écrire directement dans `data/library.xml`. Les modifications sont donc stockées en `localStorage`, puis exportées avec le bouton `Exporter XML`.
+
+Les exports affichés dans l'interface proposent aussi :
+
+- copier l'export ;
+- télécharger le fichier généré.
+
+## Recherche Et Filtres
+
+`videos.html` propose maintenant :
+
+- filtre par playlist ;
+- filtre par périmètre : playlist active, bibliothèque, importées ou toutes les vidéos ;
+- tri par catégorie, titre ou source.
+
+`files.html` distingue les ressources par type :
+
+- vidéos ;
+- liens ;
+- documents ;
+- notes ;
+- fichiers locaux.
 
 ## Vérification
 
@@ -110,11 +132,12 @@ Tests manuels recommandés :
 - vérifier les vidéos de `data/library.xml` ;
 - vérifier la section `Vidéos importées` ;
 - rechercher une vidéo ;
-- filtrer par catégorie et source ;
+- filtrer par catégorie, source, état, playlist et périmètre ;
 - cliquer sur une vidéo et vérifier que le lecteur change ;
 - ouvrir `playlists.html > Administration` ;
 - organiser une vidéo importée ;
 - exporter le XML ;
+- copier ou télécharger l'export ;
 - ouvrir `files.html` et vérifier les ressources.
 
 ## Déploiement GitHub Pages

@@ -116,6 +116,8 @@ test("admin panel manages the category playlist video hierarchy", async ({ page 
   await page.getByRole("button", { name: "Exporter XML" }).click();
   await expect(page.locator("#playlistXmlOutput")).toContainText("Playlist A Test");
   await expect(page.locator("#playlistXmlOutput")).toContainText("Vidéo B Test");
+  await expect(page.getByRole("button", { name: "Copier l'export" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Télécharger" })).toBeVisible();
 });
 
 test("video intelligence enriches titles descriptions tags and levels", async ({ page }) => {
@@ -138,10 +140,18 @@ test("imported YouTube resources are visible searchable and organizable", async 
   await expect(page.getByRole("heading", { name: "Ressources YouTube importées." })).toBeVisible();
   await expect(page.locator("[data-imported-video]")).toHaveCount(174);
   await expect(page.locator("#playlistSelect")).toContainText("Ressources importées");
+  await expect(page.locator(".imported-section")).toContainText("174 non classées");
 
   const firstTitle = await page.locator("#playerInfo h2").textContent();
   await page.locator("[data-video-row]").nth(1).click();
   await expect(page.locator("#playerInfo h2")).not.toHaveText(firstTitle || "");
+
+  await page.locator("#videoScope").selectOption("all");
+  await page.locator("#videoSort").selectOption("title");
+  await page.locator("#videoSearch").fill("Python");
+  await expect(page.locator("[data-video-row]").first()).toBeVisible();
+  await page.locator("#videoScope").selectOption("imported");
+  await expect(page.locator("[data-video-row]").first()).toBeVisible();
 
   await page.locator("#importedSearch").fill("Python");
   await expect(page.locator("[data-imported-video]:visible").first()).toBeVisible();
@@ -152,14 +162,25 @@ test("imported YouTube resources are visible searchable and organizable", async 
   await page.goto("/playlists.html?admin=imports");
   await expect(page.locator("#adminDrawer")).toBeVisible();
   await expect(page.locator("#organizeImportedForm select[name='videoKey'] option")).toHaveCount(174);
+  await expect(page.locator("#importedAdminList")).toContainText("Non classée");
   await page.locator("#organizeImportedForm input[name='newPlaylistTitle']").fill("Importées Test");
   await page.locator("#organizeImportedForm").getByRole("button", { name: "Ajouter à la playlist" }).click();
   await expect.poll(async () => page.evaluate(() => {
     const library = JSON.parse(localStorage.getItem("visionhub-v2-library"));
     return library.playlists.find((playlist) => playlist.id === "importees-test")?.videos.length || 0;
   })).toBe(1);
+  await expect(page.locator("#adminDrawer")).toContainText("déjà organisées");
+  await page.locator("[data-import-admin-status='organized']").click();
+  await expect(page.locator("[data-import-admin-row]:visible").first()).toContainText("Ajoutée à Importées Test");
 
   await page.goto("/files.html");
   await expect(page.locator("[data-file-card]").filter({ hasText: "Développement, IA, programmation" }).first()).toBeVisible();
   await expect(page.locator("[data-file-card]").filter({ hasText: "Cet outil IA permet de créer des apps" })).toBeVisible();
+  await expect(page.locator(".resource-pager").first()).toBeVisible();
+  await page.locator(".resource-pager [data-resource-page-next]").first().click();
+  await expect(page.locator(".resource-pager [data-resource-page-label]").first()).toContainText("2 /");
+  await page.locator("#fileTypeFilter").selectOption("video");
+  await expect(page.locator("[data-resource-row][data-type='video']:visible").first()).toBeVisible();
+  await page.locator("#fileTypeFilter").selectOption("document");
+  await expect(page.locator("[data-resource-row][data-type='document']:visible").first()).toBeVisible();
 });

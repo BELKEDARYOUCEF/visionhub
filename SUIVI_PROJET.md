@@ -151,6 +151,40 @@ Tests Playwright couverts :
 - création locale d'une playlist depuis une vidéo importée ;
 - présence des ressources dans `files.html`.
 
+## Améliorations statiques — 10 juin 2026
+
+Fonctions ajoutées :
+
+- état clair des vidéos importées : `Non classée` ou `Ajoutée à ...` ;
+- compteur des importées non classées et déjà organisées ;
+- filtre d'administration des importées : toutes, non classées, déjà organisées ;
+- conservation de la playlist importée source quand une vidéo est organisée ;
+- export avec actions `Copier l'export` et `Télécharger` ;
+- `videos.html` : filtre par playlist ;
+- `videos.html` : filtre par périmètre, bibliothèque, importées ou toutes les vidéos ;
+- `videos.html` : tri par catégorie, titre ou source ;
+- `files.html` : filtre par type de ressource ;
+- `files.html` : distinction visuelle entre vidéos, liens, documents, notes et fichiers locaux.
+
+Vérification GitHub Pages :
+
+- `https://belkedaryoucef.github.io/visionhub/index.html` répond en HTTP 200 ;
+- `https://belkedaryoucef.github.io/visionhub/videos.html` répond en HTTP 200 ;
+- `https://belkedaryoucef.github.io/visionhub/playlists.html` répond en HTTP 200 ;
+- `https://belkedaryoucef.github.io/visionhub/files.html` répond en HTTP 200 ;
+- les XML `library.xml`, `resources.xml`, `video-intelligence.xml`, `workspace.xml` et `finance.xml` répondent en HTTP 200.
+
+Limite de cette vérification :
+
+- ces changements doivent encore être poussés/déployés pour apparaître sur GitHub Pages ;
+- la vérification GitHub Pages ci-dessus confirme que le déploiement existant sert bien les pages et XML statiques.
+
+Tests locaux :
+
+- `npm run check:js` : OK ;
+- `npm run test:e2e` : OK, 3 tests Playwright passent ;
+- les tests couvrent les nouveaux filtres vidéo, les états d'importées, l'organisation locale, les actions d'export visibles et les filtres de ressources.
+
 ## Prochaines Tâches Statiques
 
 - Améliorer l'ergonomie de la section `Vidéos importées`.
@@ -158,3 +192,18 @@ Tests Playwright couverts :
 - Améliorer l'export XML avec un bouton de copie plus confortable.
 - Ajouter des filtres plus fins dans `files.html`.
 - Continuer à garder le projet compatible GitHub Pages sans backend obligatoire.
+
+## Ajustements interface — 10 juin 2026
+
+Corrections effectuées :
+
+- le panneau `playlists.html > Administration` est repositionné sous la navigation sticky pour ne plus être masqué par l'en-tête ;
+- le panneau d'administration a maintenant des marges, un arrondi et une hauteur limitée à l'espace visible ;
+- dans `files.html`, chaque dossier affiche les ressources par pages de 5 éléments ;
+- les flèches précédent/suivant permettent de naviguer dans les dossiers qui contiennent beaucoup de ressources ;
+- la pagination se combine avec le filtre par type de ressource.
+
+Tests :
+
+- `npm run check:js` : OK ;
+- `npm run test:e2e` : OK, 3 tests Playwright passent.

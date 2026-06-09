@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<library version="1.0" updated="2026-06-09">
+  <categories>
+    <category id="web" title="Développement Web" icon="&lt;/&gt;" color="cyan">JavaScript, interfaces, CSS, architecture front-end et projets web.</category>
+    <category id="ia" title="Intelligence Artificielle" icon="AI" color="violet">Prompts, agents, automatisation, outils IA et workflows avancés.</category>
+    <category id="design" title="Design UI/UX" icon="UX" color="pink">Design systems, expérience utilisateur, inspiration et identité visuelle.</category>
+    <category id="business" title="Business &amp; Startup" icon="$" color="orange">Offres, stratégie, marketing, acquisition et exécution business.</category>
+    <category id="productivity" title="Productivité" icon="✓" color="green">Organisation personnelle, focus, routines et apprentissage structuré.</category>
+  </categories>
+
+  <playlists>
+    <playlist id="frontend-foundations" category="web" level="Débutant" title="Frontend Foundations" tags="Coding,HTML,CSS,JavaScript">
+      <description>Construire des bases solides pour créer des interfaces rapides, propres et maintenables.</description>
+      <video id="html-crash" youtubeId="UB1O30fR-EE" duration="1:00:42" level="Débutant" title="HTML Crash Course" tags="HTML,Web">
+        <description>Les bases HTML pour structurer correctement une page web.</description>
+      </video>
+      <video id="css-grid" youtubeId="jV8B24rSN5o" duration="24:59" level="Intermédiaire" title="CSS Grid Tutorial" tags="CSS,Layout">
+        <description>Comprendre CSS Grid pour construire des layouts modernes.</description>
+      </video>
+      <video id="js-course" youtubeId="W6NZfCO5SIk" duration="48:17" level="Débutant" title="JavaScript Tutorial" tags="JavaScript,Logic">
+        <description>Premiers concepts JavaScript pour rendre une interface dynamique.</description>
+      </video>
+    </playlist>
+
+    <playlist id="ai-operator" category="ia" level="Intermédiaire" title="AI Operator" tags="IA,Prompt,Automatisation">
+      <description>Transformer les outils IA en système d’exécution pour apprendre, vendre et produire plus vite.</description>
+      <video id="ai-basics" youtubeId="2ePf9rue1Ao" duration="5:43" level="Débutant" title="Machine Learning Explained" tags="IA,Concepts">
+        <description>Vue simple des concepts d’apprentissage automatique.</description>
+      </video>
+      <video id="prompt-method" youtubeId="dOxUroR57xs" duration="12:10" level="Débutant" title="Prompt Engineering Method" tags="Prompt,IA">
+        <description>Structurer ses prompts pour obtenir des réponses plus fiables.</description>
+      </video>
+    </playlist>
+
+    <playlist id="ui-premium" category="design" level="Intermédiaire" title="Premium UI Systems" tags="Design,UX,Interface">
+      <description>Créer des interfaces premium inspirées des meilleurs produits SaaS et media platforms.</description>
+      <video id="figma-ui" youtubeId="FTFaQWZBqQ8" duration="18:19" level="Débutant" title="Figma UI Design Tutorial" tags="Figma,UI">
+        <description>Les bases de l’interface design avec Figma.</description>
+      </video>
+      <video id="ux-principles" youtubeId="Ovj4hFxko7c" duration="11:36" level="Débutant" title="UX Principles" tags="UX,Design">
+        <description>Principes UX utiles pour rendre une interface plus claire.</description>
+      </video>
+    </playlist>
+
+    <playlist id="startup-growth" category="business" level="Intermédiaire" title="Startup Growth" tags="Business,Marketing,Startup">
+      <description>Construire une offre claire, la tester, trouver des clients et suivre les indicateurs clés.</description>
+      <video id="startup-school" youtubeId="CBYhVcO4WgI" duration="28:55" level="Intermédiaire" title="Startup School" tags="Startup,Strategy">
+        <description>Passer d’une idée à une exécution business concrète.</description>
+      </video>
+      <video id="value-proposition" youtubeId="ReM1uqmVfP0" duration="10:31" level="Débutant" title="Value Proposition" tags="Offer,Marketing">
+        <description>Clarifier une proposition de valeur simple et vendable.</description>
+      </video>
+    </playlist>
+  </playlists>
+
+  <files>
+    <folder id="business" title="Business" icon="briefcase" tags="Offres,Clients,Finance">
+      <file id="offer-map" title="Carte des offres" type="note" status="À structurer" />
+      <file id="client-research" title="Recherche clients" type="table" status="En cours" />
+    </folder>
+    <folder id="learning" title="Apprentissage" icon="book" tags="Cours,Notes,Vidéos">
+      <file id="web-notes" title="Notes développement web" type="note" status="Actif" />
+      <file id="ai-prompts" title="Bibliothèque de prompts" type="database" status="Actif" />
+    </folder>
+  </files>
+
+  <finance>
+    <metric id="revenue" title="Revenus suivis" value="0" unit="€" />
+    <metric id="expenses" title="Dépenses prévues" value="0" unit="€" />
+    <metric id="runway" title="Budget disponible" value="0" unit="€" />
+  </finance>
+</library>

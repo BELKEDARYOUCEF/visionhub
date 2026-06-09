@@ -1,0 +1,10 @@
+{
+  "name": "visionhub-pro-foundation",
+  "version": "2.0.0",
+  "description": "Fondation statique premium pour organiser des vidéos YouTube, playlists, fichiers et finances avec une base XML interne.",
+  "scripts": {
+    "start": "python3 -m http.server 5502",
+    "check:js": "node --check app.js"
+  },
+  "license": "ISC"
+}

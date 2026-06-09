@@ -35,17 +35,11 @@
 
     <playlist id="informatique-ia-tools" category="informatique" level="Débutant" title="Vidéos YouTube sur l'informatique" tags="Informatique,IA,Outils,Tech">
       <description>Playlist créée depuis le fichier `Video YouTube sur l'informatique .txt` du dossier `a faire`.</description>
-      <video id="informatique-video-1" youtubeId="gGquFWBY5cs" duration="À vérifier" level="Débutant" title="Vidéo informatique à regarder" tags="Informatique,Tech">
-        <description>Lien YouTube importé depuis le fichier de tâches. Le titre public n'a pas pu être récupéré automatiquement.</description>
-      </video>
       <video id="outils-ia-gratuits" youtubeId="9TwedVHohUc" duration="À vérifier" level="Débutant" title="J'ai testé 74 outils IA gratuits et voici les meilleurs" tags="IA,Outils,Productivité">
         <description>Sélection d'outils IA gratuits à tester et organiser dans VisionHub.</description>
       </video>
       <video id="business-ia-2024" youtubeId="NjTbdO-krH8" duration="À vérifier" level="Intermédiaire" title="11 Business d'Intelligence Artificielle à Lancer en 2024 (10k/Mois)" tags="IA,Business,Startup">
         <description>Idées de business autour de l'intelligence artificielle et de l'automatisation.</description>
-      </video>
-      <video id="informatique-video-4" youtubeId="8LHEwkV7QpY" duration="À vérifier" level="Débutant" title="Vidéo informatique et IA à regarder" tags="Informatique,IA,Tech">
-        <description>Lien YouTube importé depuis le fichier de tâches. Le titre public n'a pas pu être récupéré automatiquement.</description>
       </video>
     </playlist>
 

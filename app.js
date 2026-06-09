@@ -1,9 +1,13 @@
 const APP = {
   libraryUrl: "data/library.xml",
   workspaceUrl: "data/workspace.xml",
+  resourcesUrl: "data/resources.xml",
+  videoIntelligenceUrl: "data/video-intelligence.xml",
   financeUrl: "data/finance.xml",
   storage: {
     additions: "visionhub-v2-additions",
+    library: "visionhub-v2-library",
+    admin: "visionhub-v2-admin",
     favorites: "visionhub-v2-favorites",
     active: "visionhub-v2-active",
     workspace: "visionhub-v2-workspace",
@@ -18,6 +22,7 @@ let state = {
   categories: [],
   playlists: [],
   files: [],
+  videoIntelligence: {},
   finance: { transactions: [], goals: [] },
   favorites: readJson(APP.storage.favorites, []),
   active: readJson(APP.storage.active, {})
@@ -42,7 +47,10 @@ async function init() {
   }
 
   mergeLocalAdditions();
+  applyLibraryOverride();
   await loadWorkspace();
+  await loadResources();
+  await loadVideoIntelligence();
   await loadFinance();
   mergeLocalWorkspace();
   mergeLocalFinance();
@@ -165,6 +173,110 @@ async function loadWorkspace() {
   }
 }
 
+async function loadResources() {
+  const xmlText = await loadDataXml(APP.resourcesUrl);
+  if (!xmlText) return;
+  try {
+    const doc = xmlDoc(xmlText);
+    const folders = [...doc.querySelectorAll("folder")].map((node) => ({
+      id: node.getAttribute("id"),
+      title: node.getAttribute("title"),
+      icon: node.getAttribute("icon") || "link",
+      status: node.getAttribute("status") || "Importé",
+      tags: splitTags(node.getAttribute("tags")),
+      description: clean(childElement(node, "description")?.textContent),
+      files: childElements(node, "item").map((child) => ({
+        id: child.getAttribute("id"),
+        title: child.getAttribute("title"),
+        type: child.getAttribute("type") || "lien",
+        status: child.getAttribute("status") || "Importé",
+        url: child.getAttribute("url") || "",
+        source: child.getAttribute("source") || "",
+        youtubeId: child.getAttribute("youtubeId") || "",
+        tags: splitTags(child.getAttribute("tags")),
+        note: clean(child.textContent)
+      }))
+    }));
+    folders.forEach((folder) => {
+      const existing = state.files.find((item) => item.id === folder.id);
+      if (existing) {
+        existing.files = [...existing.files, ...folder.files.filter((file) => !existing.files.some((item) => item.id === file.id))];
+        existing.tags = [...new Set([...(existing.tags || []), ...folder.tags])];
+      } else {
+        state.files.push(folder);
+      }
+    });
+  } catch (error) {
+    console.error("Erreur dans data/resources.xml. Catalogue ressources ignoré.", error);
+  }
+}
+
+async function loadVideoIntelligence() {
+  const xmlText = await loadDataXml(APP.videoIntelligenceUrl);
+  if (!xmlText) return;
+  try {
+    const doc = xmlDoc(xmlText);
+    state.videoIntelligence = Object.fromEntries([...doc.querySelectorAll("video")].map((node) => [
+      node.getAttribute("youtubeId"),
+      {
+        youtubeId: node.getAttribute("youtubeId"),
+        title: node.getAttribute("title"),
+        originalTitle: node.getAttribute("originalTitle") || "",
+        description: clean(childElement(node, "description")?.textContent),
+        tags: splitTags(node.getAttribute("tags")),
+        level: node.getAttribute("level") || "",
+        topic: node.getAttribute("topic") || "",
+        domain: node.getAttribute("domain") || "",
+        intent: node.getAttribute("intent") || "",
+        confidence: node.getAttribute("confidence") || ""
+      }
+    ]));
+    applyVideoIntelligence();
+  } catch (error) {
+    console.error("Erreur dans data/video-intelligence.xml. Enrichissement vidéo ignoré.", error);
+  }
+}
+
+function applyVideoIntelligence() {
+  state.playlists.forEach((playlist) => {
+    playlist.videos = playlist.videos.map((video) => enrichVideoRecord(video));
+  });
+  state.files.forEach((folder) => {
+    folder.files = folder.files.map((file) => {
+      if (!file.youtubeId) return file;
+      const enriched = state.videoIntelligence[file.youtubeId];
+      if (!enriched) return file;
+      return {
+        ...file,
+        title: enriched.title || file.title,
+        status: file.status === "Validé" ? "Enrichi" : file.status,
+        tags: [...new Set([...(file.tags || []), ...enriched.tags])],
+        topic: enriched.topic,
+        domain: enriched.domain,
+        intent: enriched.intent,
+        note: enriched.description || file.note
+      };
+    });
+  });
+}
+
+function enrichVideoRecord(video) {
+  const enriched = state.videoIntelligence[video.youtubeId];
+  if (!enriched) return video;
+  return {
+    ...video,
+    rawTitle: video.title,
+    title: enriched.title || video.title,
+    description: enriched.description || video.description,
+    level: enriched.level || video.level,
+    tags: [...new Set([...(video.tags || []), ...enriched.tags])],
+    topic: enriched.topic,
+    domain: enriched.domain,
+    intent: enriched.intent,
+    confidence: enriched.confidence
+  };
+}
+
 async function loadFinance() {
   const xmlText = await loadDataXml(APP.financeUrl);
   if (!xmlText) return;
@@ -203,6 +315,49 @@ function mergeLocalAdditions() {
     const playlist = state.playlists.find((item) => item.id === video.playlistId);
     if (playlist && !playlist.videos.some((item) => item.id === video.id)) playlist.videos.push({ ...video, category: playlist.category });
   });
+}
+
+function applyLibraryOverride() {
+  const override = readJson(APP.storage.library, null);
+  if (!override?.categories?.length || !Array.isArray(override.playlists)) return;
+  state.categories = override.categories.map((cat) => ({
+    id: slug(cat.id || cat.title),
+    title: cat.title || "Catégorie",
+    icon: cat.icon || cat.title?.slice(0, 2) || "VH",
+    color: cat.color || "cyan",
+    description: cat.description || ""
+  }));
+  state.playlists = override.playlists
+    .filter((list) => state.categories.some((cat) => cat.id === list.category))
+    .map((list) => {
+      const playlistId = slug(list.id || list.title);
+      return {
+        id: playlistId,
+        title: list.title || "Playlist",
+        description: list.description || "",
+        category: list.category,
+        level: list.level || "Débutant",
+        tags: Array.isArray(list.tags) ? list.tags : splitTags(list.tags),
+        videos: (list.videos || []).map((video) => ({
+          id: slug(video.id || video.title),
+          playlistId,
+          category: list.category,
+          title: video.title || "Vidéo",
+          description: video.description || "",
+          youtubeId: normalizeYoutubeId(video.youtubeId || video.youtube),
+          duration: video.duration || "0:00",
+          level: video.level || list.level || "Débutant",
+          tags: Array.isArray(video.tags) ? video.tags : splitTags(video.tags)
+        })).filter((video) => video.youtubeId)
+      };
+    });
+}
+
+function saveLibraryOverride() {
+  state.playlists.forEach((list) => {
+    list.videos = list.videos.map((video) => ({ ...video, playlistId: list.id, category: list.category }));
+  });
+  saveJson(APP.storage.library, { categories: state.categories, playlists: state.playlists });
 }
 
 function mergeLocalWorkspace() {
@@ -247,10 +402,10 @@ function renderHome() {
       <div class="hero-copy">
         <p class="kicker">VisionHub OS</p>
         <h1>Ton centre vivant pour vidéos, fichiers, apprentissage et business.</h1>
-        <p>Une base propre pour construire une application revendable : playlists dynamiques, lecteur YouTube robuste, dossiers façon workspace, finance légère et futur backend SQL.</p>
+        <p>Une bibliothèque claire pour organiser vidéos, fichiers, apprentissage et suivi business au même endroit.</p>
         <div class="hero-actions">
           <a class="btn primary" href="videos.html">Ouvrir le lecteur</a>
-          <a class="btn" href="studio.html">Ajouter une vidéo</a>
+          <a class="btn" href="playlists.html">Gérer les playlists</a>
           <a class="btn ghost" href="files.html">Organiser les fichiers</a>
         </div>
       </div>
@@ -263,7 +418,7 @@ function renderHome() {
       ${appCard("Bibliothèque vidéo", "Playlists, favoris, lecture 16:9 et tags.", "videos.html")}
       ${appCard("File OS", "Dossiers, notes, ressources et structure type Drive/Notion.", "files.html")}
       ${appCard("Finance cockpit", "Première base pour revenus, dépenses et budget.", "finance.html")}
-      ${appCard("Studio", "Ajout local, export XML et préparation future SQL.", "studio.html")}
+      ${appCard("Administration", "Gestion progressive de la bibliothèque.", "playlists.html")}
     </div></section>`;
 }
 
@@ -274,9 +429,9 @@ function appCard(title, text, href) {
 function renderPlaylists() {
   const params = new URLSearchParams(location.search);
   const current = params.get("category") || "all";
-  return `<section><div class="page-head"><div><p class="kicker">Bibliothèque</p><h1>Playlists dynamiques.</h1><p class="section-intro">Recherche, filtre par catégorie et lance directement la bonne vidéo.</p></div></div>
+  return `<section><div class="page-head"><div><p class="kicker">Bibliothèque</p><h1>Playlists dynamiques.</h1><p class="section-intro">Recherche, filtre par catégorie et lance directement la bonne vidéo.</p></div><div class="hero-actions"><button class="btn primary" id="openAdminPanel">Administration</button><button class="btn" id="exportLibraryFromPlaylists">Exporter XML</button></div></div>
     <div class="filter-bar"><input class="search-input" id="playlistSearch" type="search" placeholder="Rechercher une playlist, tag ou catégorie"><div class="filter-tabs" id="playlistFilters">${filterButtons(current)}</div></div>
-    <div class="playlist-grid" id="playlistGrid">${state.playlists.map(playlistCard).join("")}</div><div id="playlistEmpty"></div></section>`;
+    <div class="playlist-grid" id="playlistGrid">${state.playlists.map(playlistCard).join("")}</div><div id="playlistEmpty"></div>${renderAdminDrawer()}<pre class="code-box export-box" id="playlistXmlOutput" hidden></pre></section>`;
 }
 
 function filterButtons(current) {
@@ -291,12 +446,79 @@ function playlistCard(list) {
   return `<article class="playlist-card" data-playlist-card data-category="${list.category}" data-search="${escapeAttr(search)}"><div class="playlist-thumb" style="background-image:linear-gradient(180deg, transparent, rgba(7,10,18,.86)), url('${image}')"></div><div class="card-meta"><span class="badge">${categoryName(list.category)}</span><span class="level">${escapeHtml(list.level)}</span><span class="badge">${list.videos.length} vidéos</span></div><h3>${escapeHtml(list.title)}</h3><p>${escapeHtml(list.description)}</p><div class="chip-row">${list.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div><a class="btn primary" href="${href}">Explorer</a></article>`;
 }
 
+function renderAdminDrawer() {
+  const admin = readJson(APP.storage.admin, {});
+  const selectedCategoryId = admin.categoryId || state.categories[0]?.id || "";
+  const selectedPlaylist = getPlaylist(admin.playlistId) || state.playlists[0];
+  const selectedPlaylistId = selectedPlaylist?.id || "";
+  const selectedVideo = getVideo(selectedPlaylist, admin.videoId);
+  const selectedVideoId = selectedVideo?.id || "";
+  return `<div class="admin-overlay" id="adminOverlay" hidden></div>
+    <aside class="admin-drawer" id="adminDrawer" aria-label="Administration de la bibliothèque" hidden>
+      <div class="admin-head"><div><p class="kicker">Administration</p><h2>Bibliothèque</h2></div><button class="btn ghost" id="closeAdminPanel">Fermer</button></div>
+      <div class="admin-grid">
+        <section class="admin-section">
+          <div class="admin-section-head"><h3>Catégories</h3><span class="badge">${state.categories.length}</span></div>
+          <form id="categoryAdminForm" class="studio-form">
+            <label>Catégorie<select class="select-input" name="id" id="categoryAdminSelect"><option value="__new__">Nouvelle catégorie</option>${state.categories.map((cat) => `<option value="${cat.id}" ${cat.id === selectedCategoryId ? "selected" : ""}>${escapeHtml(cat.title)}</option>`).join("")}</select></label>
+            <label>Nom<input class="search-input" name="title" required></label>
+            <label>Icône<input class="search-input" name="icon" maxlength="8"></label>
+            <label>Couleur<input class="search-input" name="color" placeholder="cyan, violet, orange"></label>
+            <label>Description<textarea name="description"></textarea></label>
+            <div class="admin-actions"><button class="btn primary">Enregistrer</button><button class="btn danger" type="button" data-admin-delete="category">Supprimer</button></div>
+          </form>
+          <form id="mergeCategoryForm" class="studio-form compact-admin-form">
+            <label>Fusionner<select class="select-input" name="from">${state.categories.map((cat) => `<option value="${cat.id}">${escapeHtml(cat.title)}</option>`).join("")}</select></label>
+            <label>Vers<select class="select-input" name="to">${state.categories.map((cat) => `<option value="${cat.id}">${escapeHtml(cat.title)}</option>`).join("")}</select></label>
+            <button class="btn" type="submit">Fusionner</button>
+          </form>
+          <div class="admin-list" id="categoryAdminList">${state.categories.map((cat) => adminRow("category", cat.id, cat.title, `${playlistsByCategory(cat.id).length} playlists`)).join("")}</div>
+        </section>
+
+        <section class="admin-section">
+          <div class="admin-section-head"><h3>Playlists</h3><span class="badge">${state.playlists.length}</span></div>
+          <form id="playlistAdminForm" class="studio-form">
+            <label>Playlist<select class="select-input" name="id" id="playlistAdminSelect"><option value="__new__">Nouvelle playlist</option>${state.playlists.map((list) => `<option value="${list.id}" ${list.id === selectedPlaylistId ? "selected" : ""}>${escapeHtml(list.title)}</option>`).join("")}</select></label>
+            <label>Titre<input class="search-input" name="title" required></label>
+            <label>Catégorie<select class="select-input" name="category">${state.categories.map((cat) => `<option value="${cat.id}">${escapeHtml(cat.title)}</option>`).join("")}</select></label>
+            <label>Niveau<input class="search-input" name="level" value="Débutant"></label>
+            <label>Tags<input class="search-input" name="tags"></label>
+            <label>Description<textarea name="description"></textarea></label>
+            <div class="admin-actions"><button class="btn primary">Enregistrer</button><button class="btn danger" type="button" data-admin-delete="playlist">Supprimer</button></div>
+          </form>
+          <div class="admin-list" id="playlistAdminList">${state.playlists.map((list) => adminRow("playlist", list.id, list.title, `${categoryName(list.category)} · ${list.videos.length} vidéos`)).join("")}</div>
+        </section>
+
+        <section class="admin-section">
+          <div class="admin-section-head"><h3>Vidéos</h3><span class="badge">${allVideos().length}</span></div>
+          <form id="videoAdminForm" class="studio-form">
+            <label>Playlist<select class="select-input" name="playlistId" id="videoPlaylistSelect">${state.playlists.map((list) => `<option value="${list.id}" ${list.id === selectedPlaylistId ? "selected" : ""}>${escapeHtml(list.title)}</option>`).join("")}</select></label>
+            <label>Vidéo<select class="select-input" name="id" id="videoAdminSelect"><option value="__new__">Nouvelle vidéo</option>${(selectedPlaylist?.videos || []).map((video) => `<option value="${video.id}" ${video.id === selectedVideoId ? "selected" : ""}>${escapeHtml(video.title)}</option>`).join("")}</select></label>
+            <label>Titre<input class="search-input" name="title" required></label>
+            <label>Lien ou ID YouTube<input class="search-input" name="youtube" required></label>
+            <label>Déplacer vers<select class="select-input" name="targetPlaylistId">${state.playlists.map((list) => `<option value="${list.id}" ${list.id === selectedPlaylistId ? "selected" : ""}>${escapeHtml(list.title)}</option>`).join("")}</select></label>
+            <label>Durée<input class="search-input" name="duration" value="0:00"></label>
+            <label>Niveau<input class="search-input" name="level" value="Débutant"></label>
+            <label>Tags<input class="search-input" name="tags"></label>
+            <label>Description<textarea name="description"></textarea></label>
+            <div class="admin-actions"><button class="btn primary">Enregistrer</button><button class="btn danger" type="button" data-admin-delete="video">Supprimer</button></div>
+          </form>
+          <div class="admin-list" id="videoAdminList">${(selectedPlaylist?.videos || []).map((video) => adminRow("video", video.id, video.title, video.duration || "0:00", selectedPlaylistId)).join("")}</div>
+        </section>
+      </div>
+    </aside>`;
+}
+
+function adminRow(kind, id, title, meta, parentId = "") {
+  return `<div class="admin-row" draggable="true" data-admin-row="${kind}" data-id="${escapeAttr(id)}" data-parent="${escapeAttr(parentId)}"><span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(meta)}</small></span><span class="admin-row-actions"><button class="mini-btn" type="button" data-admin-edit="${kind}" data-id="${escapeAttr(id)}" data-parent="${escapeAttr(parentId)}">Éditer</button><button class="mini-btn" type="button" data-admin-move="up" data-kind="${kind}" data-id="${escapeAttr(id)}" data-parent="${escapeAttr(parentId)}">↑</button><button class="mini-btn" type="button" data-admin-move="down" data-kind="${kind}" data-id="${escapeAttr(id)}" data-parent="${escapeAttr(parentId)}">↓</button></span></div>`;
+}
+
 function renderVideos() {
   const params = new URLSearchParams(location.search);
   const playlist = getPlaylist(params.get("playlist") || state.active.playlistId) || firstPlaylist();
   const video = getVideo(playlist, params.get("video") || state.active.videoId) || playlist.videos[0];
   setActive(playlist?.id, video?.id, false);
-  return `<section class="video-page"><div class="page-head"><div><p class="kicker">Lecteur robuste</p><h1>${escapeHtml(playlist.title)}</h1><p class="section-intro">Le lecteur ne charge qu’une iframe après action utilisateur. En <code>file://</code>, l’iframe est bloquée volontairement pour éviter l’écran YouTube Error 153.</p></div><select class="select-input" id="playlistSelect">${state.playlists.map((item) => `<option value="${item.id}" ${item.id === playlist.id ? "selected" : ""}>${escapeHtml(item.title)}</option>`).join("")}</select></div>
+  return `<section class="video-page"><div class="page-head"><div><p class="kicker">Lecteur vidéo</p><h1>${escapeHtml(playlist.title)}</h1><p class="section-intro">Choisis une vidéo, lance la lecture et garde ta progression organisée par playlist.</p></div><select class="select-input" id="playlistSelect">${state.playlists.map((item) => `<option value="${item.id}" ${item.id === playlist.id ? "selected" : ""}>${escapeHtml(item.title)}</option>`).join("")}</select></div>
     <div class="player-layout">
       <article class="player-shell"><div class="player-frame" id="playerFrame">${renderPlayerPoster(video)}</div><div class="player-info" id="playerInfo">${videoInfo(video)}</div></article>
       <aside><input class="search-input video-search" id="videoSearch" type="search" placeholder="Rechercher une vidéo"><div class="video-list" id="videoList">${playlist.videos.map((item) => videoRow(item, playlist.id, item.id === video.id)).join("")}</div><div id="videoEmpty"></div></aside>
@@ -312,7 +534,7 @@ function loadYoutubeIntoFrame(video) {
   const frame = document.querySelector("#playerFrame");
   if (!frame || !video?.youtubeId) return;
   if (location.protocol === "file:") {
-    frame.innerHTML = `<div class="empty-state"><strong>Serveur local requis</strong><p>YouTube peut afficher Error 153 en ouverture directe car le navigateur n’envoie pas de Referer HTTP. Lance <code>npm run start</code>, puis ouvre <code>http://127.0.0.1:5502</code>.</p><a class="btn primary" href="${youtubeWatchUrl(video)}" target="_blank" rel="noreferrer">Ouvrir sur YouTube</a></div>`;
+    frame.innerHTML = `<div class="empty-state"><strong>Lecture indisponible ici</strong><p>Ouvre la vidéo sur YouTube ou lance VisionHub depuis le serveur local.</p><a class="btn primary" href="${youtubeWatchUrl(video)}" target="_blank" rel="noreferrer">Ouvrir sur YouTube</a></div>`;
     return;
   }
   const src = youtubeEmbedUrl(video.youtubeId);
@@ -320,12 +542,17 @@ function loadYoutubeIntoFrame(video) {
 }
 
 function videoInfo(video) {
-  return `<div class="card-meta"><span class="badge">${categoryName(video.category)}</span><span class="level">${escapeHtml(video.level)}</span><span class="badge">${escapeHtml(video.duration)}</span></div><h2>${escapeHtml(video.title)}</h2><p>${escapeHtml(video.description)}</p><div class="player-actions"><button class="btn primary" data-favorite="${video.id}">${state.favorites.includes(video.id) ? "Retirer des favoris" : "Ajouter aux favoris"}</button><a class="btn" href="${youtubeWatchUrl(video)}" target="_blank" rel="noreferrer">Ouvrir sur YouTube</a></div>`;
+  const topic = video.topic ? `<span class="badge">${escapeHtml(video.topic)}</span>` : "";
+  const domain = video.domain ? `<span class="badge">${escapeHtml(video.domain)}</span>` : "";
+  const intent = video.intent ? `<span class="badge">${escapeHtml(video.intent)}</span>` : "";
+  return `<div class="card-meta"><span class="badge">${categoryName(video.category)}</span>${domain}${topic}${intent}<span class="level">${escapeHtml(video.level)}</span><span class="badge">${escapeHtml(video.duration)}</span></div><h2>${escapeHtml(video.title)}</h2><p>${escapeHtml(video.description)}</p><div class="player-actions"><button class="btn primary" data-favorite="${video.id}">${state.favorites.includes(video.id) ? "Retirer des favoris" : "Ajouter aux favoris"}</button><a class="btn" href="${youtubeWatchUrl(video)}" target="_blank" rel="noreferrer">Ouvrir sur YouTube</a></div>`;
 }
 
 function videoRow(video, playlistId, isActive) {
-  const search = `${video.title} ${video.description} ${video.level} ${video.tags.join(" ")}`.toLowerCase();
-  return `<button class="video-row ${isActive ? "active" : ""}" data-video-row data-playlist="${playlistId}" data-video="${video.id}" data-search="${escapeAttr(search)}"><img class="video-thumb" src="${thumb(video.youtubeId)}" alt="Miniature ${escapeAttr(video.title)}" loading="lazy"><span><h3>${escapeHtml(video.title)}</h3><p>${escapeHtml(video.description)}</p><span class="video-meta"><span class="badge">${escapeHtml(video.duration)}</span><span class="level">${escapeHtml(video.level)}</span></span></span></button>`;
+  const search = `${video.title} ${video.description} ${video.level} ${video.topic || ""} ${video.domain || ""} ${video.intent || ""} ${video.tags.join(" ")}`.toLowerCase();
+  const topic = video.topic ? `<span class="badge">${escapeHtml(video.topic)}</span>` : "";
+  const domain = video.domain ? `<span class="badge">${escapeHtml(video.domain)}</span>` : "";
+  return `<button class="video-row ${isActive ? "active" : ""}" data-video-row data-playlist="${playlistId}" data-video="${video.id}" data-search="${escapeAttr(search)}"><img class="video-thumb" src="${thumb(video.youtubeId)}" alt="Miniature ${escapeAttr(video.title)}" loading="lazy"><span><h3>${escapeHtml(video.title)}</h3><p>${escapeHtml(video.description)}</p><span class="video-meta">${domain}${topic}<span class="badge">${escapeHtml(video.duration)}</span><span class="level">${escapeHtml(video.level)}</span></span></span></button>`;
 }
 
 function renderFiles() {
@@ -354,7 +581,8 @@ function folderCard(folder) {
 
 function resourceRow(file) {
   const title = escapeHtml(file.title);
-  const label = `<strong>${title}</strong><span>${escapeHtml(file.type)} · ${escapeHtml(file.status)}</span>`;
+  const source = file.source ? ` · ${escapeHtml(file.source)}` : "";
+  const label = `<strong>${title}</strong><span>${escapeHtml(file.type)} · ${escapeHtml(file.status)}${source}</span>`;
   return file.url ? `<a class="resource-row" href="${escapeAttr(file.url)}" target="_blank" rel="noreferrer">${label}</a>` : `<div class="resource-row">${label}</div>`;
 }
 
@@ -368,7 +596,7 @@ function goalCard(goal) {
 }
 
 function renderStudio() {
-  return `<section><div class="page-head"><div><p class="kicker">Studio local</p><h1>Ajouter, sauvegarder, exporter.</h1><p class="section-intro">GitHub Pages ne peut pas écrire dans le fichier XML. Le Studio sauvegarde donc dans localStorage et permet d’exporter une nouvelle base XML.</p></div><button class="btn danger" id="resetLocal">Réinitialiser local</button></div><div class="studio-grid"><article class="studio-panel"><h2>Nouvelle playlist</h2><form id="playlistForm" class="studio-form"><label>Titre<input class="search-input" name="title" required></label><label>Description<textarea name="description"></textarea></label><label>Catégorie<select class="select-input" name="category">${state.categories.map((cat) => `<option value="${cat.id}">${cat.title}</option>`).join("")}</select></label><label>Niveau<input class="search-input" name="level" value="Débutant"></label><label>Tags<input class="search-input" name="tags" placeholder="Coding, IA, Business"></label><button class="btn primary">Ajouter</button></form></article><article class="studio-panel"><h2>Nouvelle vidéo</h2><form id="videoForm" class="studio-form"><label>Playlist<select class="select-input" name="playlistId">${state.playlists.map((list) => `<option value="${list.id}">${escapeHtml(list.title)}</option>`).join("")}</select></label><label>Titre<input class="search-input" name="title" required></label><label>Description<textarea name="description"></textarea></label><label>Lien ou ID YouTube<input class="search-input" name="youtube" required placeholder="https://www.youtube.com/watch?v=..."></label><label>Durée<input class="search-input" name="duration" value="0:00"></label><label>Niveau<input class="search-input" name="level" value="Débutant"></label><label>Tags<input class="search-input" name="tags"></label><button class="btn primary">Ajouter</button></form></article></div><section class="section"><article class="studio-panel"><h2>Exporter la base XML</h2><p>Copie le XML généré dans <code>data/library.xml</code> pour versionner tes changements sur GitHub.</p><button class="btn" id="exportXml">Générer XML</button><pre class="code-box" id="xmlOutput">Clique sur “Générer XML”.</pre></article></section></section>`;
+  return `<section><div class="page-head"><div><p class="kicker">Studio</p><h1>Administrer la bibliothèque.</h1><p class="section-intro">Ajoute des playlists et des vidéos, puis exporte la bibliothèque quand elle est prête.</p></div></div><div class="studio-grid"><article class="studio-panel"><h2>Nouvelle playlist</h2><form id="playlistForm" class="studio-form"><label>Titre<input class="search-input" name="title" required></label><label>Description<textarea name="description"></textarea></label><label>Catégorie<select class="select-input" name="category">${state.categories.map((cat) => `<option value="${cat.id}">${cat.title}</option>`).join("")}</select></label><label>Niveau<input class="search-input" name="level" value="Débutant"></label><label>Tags<input class="search-input" name="tags" placeholder="Coding, IA, Business"></label><button class="btn primary">Ajouter</button></form></article><article class="studio-panel"><h2>Nouvelle vidéo</h2><form id="videoForm" class="studio-form"><label>Playlist<select class="select-input" name="playlistId">${state.playlists.map((list) => `<option value="${list.id}">${escapeHtml(list.title)}</option>`).join("")}</select></label><label>Titre<input class="search-input" name="title" required></label><label>Description<textarea name="description"></textarea></label><label>Lien ou ID YouTube<input class="search-input" name="youtube" required placeholder="https://www.youtube.com/watch?v=..."></label><label>Durée<input class="search-input" name="duration" value="0:00"></label><label>Niveau<input class="search-input" name="level" value="Débutant"></label><label>Tags<input class="search-input" name="tags"></label><button class="btn primary">Ajouter</button></form></article></div><section class="section"><article class="studio-panel"><h2>Exporter la bibliothèque</h2><button class="btn" id="exportXml">Générer XML</button><pre class="code-box" id="xmlOutput">Clique sur “Générer XML”.</pre></article></section></section>`;
 }
 
 function renderAbout() {
@@ -412,6 +640,194 @@ function bindPlaylistFilters() {
   document.querySelector("#playlistFilters")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-category]");
     if (button) setPlaylistFilter(button.dataset.category, true);
+  });
+  document.querySelector("#exportLibraryFromPlaylists")?.addEventListener("click", () => showExport("#playlistXmlOutput", exportXml()));
+  bindAdminPanel();
+}
+
+function bindAdminPanel() {
+  const drawer = document.querySelector("#adminDrawer");
+  const overlay = document.querySelector("#adminOverlay");
+  if (!drawer || !overlay) return;
+
+  const setOpen = (open) => {
+    drawer.hidden = !open;
+    overlay.hidden = !open;
+    document.body.classList.toggle("admin-open", open);
+    saveJson(APP.storage.admin, { ...readJson(APP.storage.admin, {}), open });
+  };
+
+  document.querySelector("#openAdminPanel")?.addEventListener("click", () => setOpen(true));
+  document.querySelector("#closeAdminPanel")?.addEventListener("click", () => setOpen(false));
+  overlay.addEventListener("click", () => setOpen(false));
+  if (readJson(APP.storage.admin, {}).open) setOpen(true);
+
+  fillAdminForms();
+  bindCategoryAdmin();
+  bindPlaylistAdmin();
+  bindVideoAdmin();
+  bindAdminRows();
+}
+
+function fillAdminForms() {
+  const admin = readJson(APP.storage.admin, {});
+  fillCategoryForm(admin.categoryId || state.categories[0]?.id);
+  fillPlaylistForm(admin.playlistId || state.playlists[0]?.id);
+  fillVideoForm(admin.playlistId || state.playlists[0]?.id, admin.videoId);
+}
+
+function bindCategoryAdmin() {
+  document.querySelector("#categoryAdminSelect")?.addEventListener("change", (event) => {
+    saveAdminSelection({ categoryId: event.target.value === "__new__" ? "" : event.target.value });
+    fillCategoryForm(event.target.value);
+  });
+  document.querySelector("#categoryAdminForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const existingId = form.get("id");
+    const title = clean(form.get("title"));
+    if (!title) return;
+    const next = {
+      id: existingId === "__new__" ? uniqueAdminId(slug(title), state.categories) : existingId,
+      title,
+      icon: clean(form.get("icon")) || title.slice(0, 2),
+      color: clean(form.get("color")) || "cyan",
+      description: clean(form.get("description"))
+    };
+    const index = state.categories.findIndex((cat) => cat.id === next.id);
+    if (index >= 0) state.categories[index] = next;
+    else state.categories.push(next);
+    saveAdminSelection({ categoryId: next.id });
+    persistAdminChanges(true, true);
+  });
+  document.querySelector("[data-admin-delete='category']")?.addEventListener("click", () => {
+    const id = document.querySelector("#categoryAdminSelect")?.value;
+    if (!id || id === "__new__") return;
+    if (state.categories.length <= 1) { alert("Il faut conserver au moins une catégorie."); return; }
+    state.categories = state.categories.filter((cat) => cat.id !== id);
+    state.playlists = state.playlists.filter((list) => list.category !== id);
+    saveAdminSelection({ categoryId: state.categories[0]?.id || "", playlistId: state.playlists[0]?.id || "", videoId: "" });
+    persistAdminChanges(true, true);
+  });
+  document.querySelector("#mergeCategoryForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const from = form.get("from");
+    const to = form.get("to");
+    if (!from || !to || from === to) return;
+    state.playlists.forEach((list) => { if (list.category === from) list.category = to; });
+    state.categories = state.categories.filter((cat) => cat.id !== from);
+    saveAdminSelection({ categoryId: to });
+    persistAdminChanges(true, true);
+  });
+}
+
+function bindPlaylistAdmin() {
+  document.querySelector("#playlistAdminSelect")?.addEventListener("change", (event) => {
+    const id = event.target.value === "__new__" ? "" : event.target.value;
+    saveAdminSelection({ playlistId: id, videoId: "" });
+    fillPlaylistForm(event.target.value);
+  });
+  document.querySelector("#playlistAdminForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const existingId = form.get("id");
+    const title = clean(form.get("title"));
+    if (!title || !form.get("category")) return;
+    const previous = state.playlists.find((list) => list.id === existingId);
+    const next = {
+      id: existingId === "__new__" ? uniqueAdminId(slug(title), state.playlists) : existingId,
+      title,
+      description: clean(form.get("description")),
+      category: form.get("category"),
+      level: clean(form.get("level")) || "Débutant",
+      tags: splitTags(form.get("tags")),
+      videos: previous?.videos || []
+    };
+    next.videos = next.videos.map((video) => ({ ...video, playlistId: next.id, category: next.category }));
+    const index = state.playlists.findIndex((list) => list.id === next.id);
+    if (index >= 0) state.playlists[index] = next;
+    else state.playlists.push(next);
+    saveAdminSelection({ playlistId: next.id, videoId: "" });
+    persistAdminChanges(true, true);
+  });
+  document.querySelector("[data-admin-delete='playlist']")?.addEventListener("click", () => {
+    const id = document.querySelector("#playlistAdminSelect")?.value;
+    if (!id || id === "__new__") return;
+    state.playlists = state.playlists.filter((list) => list.id !== id);
+    saveAdminSelection({ playlistId: state.playlists[0]?.id || "", videoId: "" });
+    persistAdminChanges(true, true);
+  });
+}
+
+function bindVideoAdmin() {
+  document.querySelector("#videoPlaylistSelect")?.addEventListener("change", (event) => {
+    saveAdminSelection({ playlistId: event.target.value, videoId: "" });
+    persistAdminChanges(false);
+  });
+  document.querySelector("#videoAdminSelect")?.addEventListener("change", (event) => {
+    saveAdminSelection({ videoId: event.target.value === "__new__" ? "" : event.target.value });
+    fillVideoForm(document.querySelector("#videoPlaylistSelect")?.value, event.target.value);
+  });
+  document.querySelector("#videoAdminForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const sourceList = getPlaylist(form.get("playlistId"));
+    const targetList = getPlaylist(form.get("targetPlaylistId"));
+    const youtubeId = normalizeYoutubeId(form.get("youtube"));
+    const title = clean(form.get("title"));
+    if (!sourceList || !targetList || !youtubeId || !title) return;
+    const existingId = form.get("id");
+    const next = {
+      id: existingId === "__new__" ? uniqueAdminId(slug(title), targetList.videos) : existingId,
+      playlistId: targetList.id,
+      category: targetList.category,
+      title,
+      description: clean(form.get("description")),
+      youtubeId,
+      duration: clean(form.get("duration")) || "0:00",
+      level: clean(form.get("level")) || targetList.level || "Débutant",
+      tags: splitTags(form.get("tags"))
+    };
+    state.playlists.forEach((list) => {
+      list.videos = list.videos.filter((video) => video.id !== existingId);
+    });
+    targetList.videos.push(next);
+    saveAdminSelection({ playlistId: targetList.id, videoId: next.id });
+    persistAdminChanges(true, true);
+  });
+  document.querySelector("[data-admin-delete='video']")?.addEventListener("click", () => {
+    const playlist = getPlaylist(document.querySelector("#videoPlaylistSelect")?.value);
+    const id = document.querySelector("#videoAdminSelect")?.value;
+    if (!playlist || !id || id === "__new__") return;
+    playlist.videos = playlist.videos.filter((video) => video.id !== id);
+    saveAdminSelection({ playlistId: playlist.id, videoId: "" });
+    persistAdminChanges(true, true);
+  });
+}
+
+function bindAdminRows() {
+  document.querySelectorAll("[data-admin-edit]").forEach((button) => button.addEventListener("click", () => {
+    const kind = button.dataset.adminEdit;
+    if (kind === "category") saveAdminSelection({ categoryId: button.dataset.id });
+    if (kind === "playlist") saveAdminSelection({ playlistId: button.dataset.id, videoId: "" });
+    if (kind === "video") saveAdminSelection({ playlistId: button.dataset.parent, videoId: button.dataset.id });
+    persistAdminChanges(false);
+  }));
+  document.querySelectorAll("[data-admin-move]").forEach((button) => button.addEventListener("click", () => {
+    moveAdminItem(button.dataset.kind, button.dataset.id, button.dataset.adminMove, button.dataset.parent);
+  }));
+  document.querySelectorAll("[data-admin-row]").forEach((row) => {
+    row.addEventListener("dragstart", (event) => {
+      event.dataTransfer.setData("text/plain", JSON.stringify({ kind: row.dataset.adminRow, id: row.dataset.id, parent: row.dataset.parent }));
+    });
+    row.addEventListener("dragover", (event) => event.preventDefault());
+    row.addEventListener("drop", (event) => {
+      event.preventDefault();
+      const source = JSON.parse(event.dataTransfer.getData("text/plain") || "{}");
+      const target = { kind: row.dataset.adminRow, id: row.dataset.id, parent: row.dataset.parent };
+      reorderAdminItem(source, target);
+    });
   });
 }
 
@@ -494,12 +910,6 @@ function bindStudio() {
     location.href = `videos.html?playlist=${encodeURIComponent(list.id)}`;
   });
 
-  document.querySelector("#resetLocal")?.addEventListener("click", () => {
-    localStorage.removeItem(APP.storage.additions);
-    localStorage.removeItem(APP.storage.active);
-    location.reload();
-  });
-
   document.querySelector("#exportXml")?.addEventListener("click", () => {
     document.querySelector("#xmlOutput").textContent = exportXml();
   });
@@ -572,7 +982,7 @@ function showExport(selector, value) {
 }
 
 function exportXml() {
-  const categoryXml = state.categories.map((cat) => `    <category id="${escXml(cat.id)}" title="${escXml(cat.title)}" icon="${escXml(cat.icon)}">${escXml(cat.description)}</category>`).join("\n");
+  const categoryXml = state.categories.map((cat) => `    <category id="${escXml(cat.id)}" title="${escXml(cat.title)}" icon="${escXml(cat.icon)}" color="${escXml(cat.color || "cyan")}">${escXml(cat.description)}</category>`).join("\n");
   const playlistXml = state.playlists.map((list) => `    <playlist id="${escXml(list.id)}" category="${escXml(list.category)}" level="${escXml(list.level)}" title="${escXml(list.title)}" tags="${escXml(list.tags.join(","))}">\n      <description>${escXml(list.description)}</description>\n${list.videos.map((video) => `      <video id="${escXml(video.id)}" youtubeId="${escXml(video.youtubeId)}" duration="${escXml(video.duration)}" level="${escXml(video.level)}" title="${escXml(video.title)}" tags="${escXml(video.tags.join(","))}">\n        <description>${escXml(video.description)}</description>\n      </video>`).join("\n")}\n    </playlist>`).join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>\n<library version="1.0">\n  <categories>\n${categoryXml}\n  </categories>\n  <playlists>\n${playlistXml}\n  </playlists>\n</library>`;
 }
@@ -601,6 +1011,100 @@ function youtubeEmbedUrl(youtubeId) {
 
 function youtubeWatchUrl(video) {
   return `https://www.youtube.com/watch?v=${encodeURIComponent(video.youtubeId)}`;
+}
+
+function fillCategoryForm(id) {
+  const form = document.querySelector("#categoryAdminForm");
+  if (!form) return;
+  const cat = state.categories.find((item) => item.id === id);
+  form.elements.id.value = cat?.id || "__new__";
+  form.elements.title.value = cat?.title || "";
+  form.elements.icon.value = cat?.icon || "";
+  form.elements.color.value = cat?.color || "";
+  form.elements.description.value = cat?.description || "";
+}
+
+function fillPlaylistForm(id) {
+  const form = document.querySelector("#playlistAdminForm");
+  if (!form) return;
+  const list = id && id !== "__new__" ? getPlaylist(id) : null;
+  form.elements.id.value = list?.id || "__new__";
+  form.elements.title.value = list?.title || "";
+  form.elements.category.value = list?.category || state.categories[0]?.id || "";
+  form.elements.level.value = list?.level || "Débutant";
+  form.elements.tags.value = list?.tags?.join(", ") || "";
+  form.elements.description.value = list?.description || "";
+}
+
+function fillVideoForm(playlistId, videoId) {
+  const form = document.querySelector("#videoAdminForm");
+  if (!form) return;
+  const playlist = getPlaylist(playlistId);
+  const video = videoId && videoId !== "__new__" ? getVideo(playlist, videoId) : null;
+  form.elements.playlistId.value = playlist?.id || "";
+  form.elements.id.value = video?.id || "__new__";
+  form.elements.title.value = video?.title || "";
+  form.elements.youtube.value = video?.youtubeId || "";
+  form.elements.targetPlaylistId.value = playlist?.id || "";
+  form.elements.duration.value = video?.duration || "0:00";
+  form.elements.level.value = video?.level || playlist?.level || "Débutant";
+  form.elements.tags.value = video?.tags?.join(", ") || "";
+  form.elements.description.value = video?.description || "";
+}
+
+function persistAdminChanges(rerender = true, closePanel = false) {
+  saveLibraryOverride();
+  if (closePanel) saveJson(APP.storage.admin, { ...readJson(APP.storage.admin, {}), open: false });
+  if (rerender) route();
+  else route();
+}
+
+function saveAdminSelection(partial) {
+  saveJson(APP.storage.admin, { ...readJson(APP.storage.admin, {}), open: true, ...partial });
+}
+
+function uniqueAdminId(base, collection) {
+  const cleanBase = base || "item";
+  let next = cleanBase;
+  let index = 2;
+  while ((collection || []).some((item) => item.id === next)) {
+    next = `${cleanBase}-${index}`;
+    index += 1;
+  }
+  return next;
+}
+
+function playlistsByCategory(categoryId) {
+  return state.playlists.filter((list) => list.category === categoryId);
+}
+
+function moveAdminItem(kind, id, direction, parentId = "") {
+  const collection = adminCollection(kind, parentId);
+  const index = collection.findIndex((item) => item.id === id);
+  const nextIndex = direction === "up" ? index - 1 : index + 1;
+  if (index < 0 || nextIndex < 0 || nextIndex >= collection.length) return;
+  const [item] = collection.splice(index, 1);
+  collection.splice(nextIndex, 0, item);
+  persistAdminChanges(true, true);
+}
+
+function reorderAdminItem(source, target) {
+  if (!source.kind || source.kind !== target.kind) return;
+  if (source.kind === "video" && source.parent !== target.parent) return;
+  const collection = adminCollection(source.kind, source.parent);
+  const from = collection.findIndex((item) => item.id === source.id);
+  const to = collection.findIndex((item) => item.id === target.id);
+  if (from < 0 || to < 0 || from === to) return;
+  const [item] = collection.splice(from, 1);
+  collection.splice(to, 0, item);
+  persistAdminChanges(true, true);
+}
+
+function adminCollection(kind, parentId = "") {
+  if (kind === "category") return state.categories;
+  if (kind === "playlist") return state.playlists;
+  if (kind === "video") return getPlaylist(parentId)?.videos || [];
+  return [];
 }
 
 function normalizeYoutubeId(input) {

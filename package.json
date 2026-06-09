@@ -4,12 +4,8 @@
   "description": "Fondation statique premium pour organiser des vidéos YouTube, playlists, fichiers et finances avec une base XML interne.",
   "scripts": {
     "start": "python3 -m http.server 5502",
-    "start:backend": "python3 scripts/backend-server.py",
     "check:js": "node --check app.js",
-    "db:import": "python3 scripts/import-xml-to-sqlite.py",
-    "test:e2e": "playwright test",
-    "build:resources": "node scripts/build-resources-catalog.js",
-    "build:video-intelligence": "node scripts/build-video-intelligence.js"
+    "test:e2e": "playwright test"
   },
   "license": "ISC",
   "devDependencies": {

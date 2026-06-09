@@ -1,5 +1,9 @@
 node_modules/
 test-results/
+.env
+data/visionhub.sqlite
+__pycache__/
+*.pyc
 playwright-report/
 data/*.sqlite
 data/*.sqlite-shm

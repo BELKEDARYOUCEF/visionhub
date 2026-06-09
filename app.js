@@ -22,6 +22,7 @@ let state = {
   categories: [],
   playlists: [],
   files: [],
+  importedVideos: [],
   videoIntelligence: {},
   finance: { transactions: [], goals: [] },
   favorites: readJson(APP.storage.favorites, []),
@@ -197,6 +198,7 @@ async function loadResources() {
         note: clean(child.textContent)
       }))
     }));
+    integrateImportedVideos(folders);
     folders.forEach((folder) => {
       const existing = state.files.find((item) => item.id === folder.id);
       if (existing) {
@@ -209,6 +211,77 @@ async function loadResources() {
   } catch (error) {
     console.error("Erreur dans data/resources.xml. Catalogue ressources ignoré.", error);
   }
+}
+
+function integrateImportedVideos(folders) {
+  const libraryYoutubeIds = new Set(allVideos().map((video) => video.youtubeId).filter(Boolean));
+  const importedByYoutubeId = new Map();
+
+  folders.forEach((folder) => {
+    ensureCategoryFromResourceFolder(folder);
+    folder.files
+      .filter((file) => file.type === "video" || file.youtubeId || normalizeYoutubeId(file.url))
+      .forEach((file) => {
+        const youtubeId = normalizeYoutubeId(file.youtubeId || file.url);
+        if (!youtubeId || libraryYoutubeIds.has(youtubeId) || importedByYoutubeId.has(youtubeId)) return;
+        const playlistId = importedPlaylistId(folder.id);
+        importedByYoutubeId.set(youtubeId, {
+          id: uniqueAdminId(file.id || slug(file.title || youtubeId), [...importedByYoutubeId.values()]),
+          playlistId,
+          category: folder.id,
+          title: clean(file.title) || `Vidéo YouTube ${youtubeId}`,
+          description: clean(file.note) || "Vidéo YouTube importée depuis data/resources.xml.",
+          youtubeId,
+          duration: "À vérifier",
+          level: "À classer",
+          tags: [...new Set(["Importée", ...(file.tags || []).filter((tag) => tag.toLowerCase() !== "video")])],
+          imported: true,
+          source: file.source || folder.title,
+          folderId: folder.id,
+          folderTitle: folder.title
+        });
+      });
+  });
+
+  const importedByPlaylist = [...importedByYoutubeId.values()].reduce((groups, video) => {
+    if (!groups.has(video.playlistId)) groups.set(video.playlistId, []);
+    groups.get(video.playlistId).push(video);
+    return groups;
+  }, new Map());
+
+  state.importedVideos = [...importedByYoutubeId.values()];
+  importedByPlaylist.forEach((videos, playlistId) => {
+    const folder = folders.find((item) => importedPlaylistId(item.id) === playlistId);
+    if (!folder) return;
+    const existing = state.playlists.find((item) => item.id === playlistId);
+    const nextVideos = videos.map((video) => enrichVideoRecord(video));
+    if (existing) {
+      const currentIds = new Set(existing.videos.map((video) => video.youtubeId));
+      existing.videos = [...existing.videos, ...nextVideos.filter((video) => !currentIds.has(video.youtubeId))];
+    } else {
+      state.playlists.push({
+        id: playlistId,
+        title: `Ressources importées — ${folder.title}`,
+        description: `Vidéos YouTube importées depuis le dossier ${folder.title} de data/resources.xml.`,
+        category: folder.id,
+        level: "À classer",
+        tags: [...new Set(["Importées", ...(folder.tags || [])])],
+        imported: true,
+        videos: nextVideos
+      });
+    }
+  });
+}
+
+function ensureCategoryFromResourceFolder(folder) {
+  if (!folder?.id || state.categories.some((cat) => cat.id === folder.id)) return;
+  state.categories.push({
+    id: folder.id,
+    title: folder.title || folder.id,
+    icon: folder.icon || (folder.title || folder.id).slice(0, 2),
+    color: "cyan",
+    description: folder.description || "Catégorie importée depuis data/resources.xml."
+  });
 }
 
 async function loadVideoIntelligence() {
@@ -338,6 +411,7 @@ function applyLibraryOverride() {
         category: list.category,
         level: list.level || "Débutant",
         tags: Array.isArray(list.tags) ? list.tags : splitTags(list.tags),
+        imported: Boolean(list.imported),
         videos: (list.videos || []).map((video) => ({
           id: slug(video.id || video.title),
           playlistId,
@@ -347,7 +421,11 @@ function applyLibraryOverride() {
           youtubeId: normalizeYoutubeId(video.youtubeId || video.youtube),
           duration: video.duration || "0:00",
           level: video.level || list.level || "Débutant",
-          tags: Array.isArray(video.tags) ? video.tags : splitTags(video.tags)
+          tags: Array.isArray(video.tags) ? video.tags : splitTags(video.tags),
+          imported: Boolean(video.imported || list.imported),
+          source: video.source || "",
+          folderId: video.folderId || list.category,
+          folderTitle: video.folderTitle || categoryName(list.category)
         })).filter((video) => video.youtubeId)
       };
     });
@@ -388,7 +466,6 @@ function route() {
     videos: renderVideos,
     files: renderFiles,
     finance: renderFinance,
-    studio: renderStudio,
     about: renderAbout
   };
   app.innerHTML = (routes[page] || renderHome)();
@@ -431,7 +508,7 @@ function renderPlaylists() {
   const current = params.get("category") || "all";
   return `<section><div class="page-head"><div><p class="kicker">Bibliothèque</p><h1>Playlists dynamiques.</h1><p class="section-intro">Recherche, filtre par catégorie et lance directement la bonne vidéo.</p></div><div class="hero-actions"><button class="btn primary" id="openAdminPanel">Administration</button><button class="btn" id="exportLibraryFromPlaylists">Exporter XML</button></div></div>
     <div class="filter-bar"><input class="search-input" id="playlistSearch" type="search" placeholder="Rechercher une playlist, tag ou catégorie"><div class="filter-tabs" id="playlistFilters">${filterButtons(current)}</div></div>
-    <div class="playlist-grid" id="playlistGrid">${state.playlists.map(playlistCard).join("")}</div><div id="playlistEmpty"></div>${renderAdminDrawer()}<pre class="code-box export-box" id="playlistXmlOutput" hidden></pre></section>`;
+    <div class="playlist-grid" id="playlistGrid">${state.playlists.map(playlistCard).join("")}</div><div id="playlistEmpty"></div>${renderImportedVideosSection("playlists")}${renderAdminDrawer()}<pre class="code-box export-box" id="playlistXmlOutput" hidden></pre></section>`;
 }
 
 function filterButtons(current) {
@@ -442,8 +519,9 @@ function playlistCard(list) {
   const first = list.videos[0];
   const image = first?.youtubeId ? thumb(first.youtubeId) : "";
   const search = `${list.title} ${list.description} ${categoryName(list.category)} ${list.tags.join(" ")}`.toLowerCase();
-  const href = first ? `videos.html?playlist=${encodeURIComponent(list.id)}&video=${encodeURIComponent(first.id)}` : "studio.html";
-  return `<article class="playlist-card" data-playlist-card data-category="${list.category}" data-search="${escapeAttr(search)}"><div class="playlist-thumb" style="background-image:linear-gradient(180deg, transparent, rgba(7,10,18,.86)), url('${image}')"></div><div class="card-meta"><span class="badge">${categoryName(list.category)}</span><span class="level">${escapeHtml(list.level)}</span><span class="badge">${list.videos.length} vidéos</span></div><h3>${escapeHtml(list.title)}</h3><p>${escapeHtml(list.description)}</p><div class="chip-row">${list.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div><a class="btn primary" href="${href}">Explorer</a></article>`;
+  const href = first ? `videos.html?playlist=${encodeURIComponent(list.id)}&video=${encodeURIComponent(first.id)}` : "playlists.html?admin=imports";
+  const imported = list.imported ? `<span class="tag">Importées</span>` : "";
+  return `<article class="playlist-card" data-playlist-card data-category="${list.category}" data-search="${escapeAttr(search)}"><div class="playlist-thumb" style="background-image:linear-gradient(180deg, transparent, rgba(7,10,18,.86)), url('${image}')"></div><div class="card-meta"><span class="badge">${categoryName(list.category)}</span><span class="level">${escapeHtml(list.level)}</span><span class="badge">${list.videos.length} vidéos</span>${imported}</div><h3>${escapeHtml(list.title)}</h3><p>${escapeHtml(list.description)}</p><div class="chip-row">${list.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div><a class="btn primary" href="${href}">Explorer</a></article>`;
 }
 
 function renderAdminDrawer() {
@@ -505,6 +583,18 @@ function renderAdminDrawer() {
           </form>
           <div class="admin-list" id="videoAdminList">${(selectedPlaylist?.videos || []).map((video) => adminRow("video", video.id, video.title, video.duration || "0:00", selectedPlaylistId)).join("")}</div>
         </section>
+
+        <section class="admin-section">
+          <div class="admin-section-head"><h3>Importées non classées</h3><span class="badge">${unorganizedImportedVideos().length}</span></div>
+          <form id="organizeImportedForm" class="studio-form">
+            <label>Vidéo<select class="select-input" name="videoKey">${unorganizedImportedVideos().map((video) => `<option value="${importedVideoKey(video)}">${escapeHtml(video.title)}</option>`).join("")}</select></label>
+            <label>Catégorie<select class="select-input" name="categoryId">${state.categories.map((cat) => `<option value="${cat.id}">${escapeHtml(cat.title)}</option>`).join("")}</select></label>
+            <label>Playlist<select class="select-input" name="playlistId"><option value="__new__">Nouvelle playlist</option>${regularPlaylists().map((list) => `<option value="${list.id}">${escapeHtml(list.title)}</option>`).join("")}</select></label>
+            <label>Nom nouvelle playlist<input class="search-input" name="newPlaylistTitle" placeholder="Ex. À regarder — IA"></label>
+            <button class="btn primary">Ajouter à la playlist</button>
+          </form>
+          <div class="admin-list">${unorganizedImportedVideos().slice(0, 80).map((video) => adminRow("imported", importedVideoKey(video), video.title, `${categoryName(video.category)} · ${video.source || "resources.xml"}`)).join("") || `<div class="empty-state"><strong>Aucune vidéo importée non classée</strong></div>`}</div>
+        </section>
       </div>
     </aside>`;
 }
@@ -522,11 +612,40 @@ function renderVideos() {
     <div class="player-layout">
       <article class="player-shell"><div class="player-frame" id="playerFrame">${renderPlayerPoster(video)}</div><div class="player-info" id="playerInfo">${videoInfo(video)}</div></article>
       <aside><input class="search-input video-search" id="videoSearch" type="search" placeholder="Rechercher une vidéo"><div class="video-list" id="videoList">${playlist.videos.map((item) => videoRow(item, playlist.id, item.id === video.id)).join("")}</div><div id="videoEmpty"></div></aside>
-    </div></section>`;
+    </div>${renderImportedVideosSection("videos")}</section>`;
+}
+
+function renderImportedVideosSection(context) {
+  const imported = importedVideosForUi();
+  if (!imported.length) return "";
+  const categories = [...new Set(imported.map((video) => video.category))];
+  const sources = [...new Set(imported.map((video) => sourceFolder(video.source)).filter(Boolean))].slice(0, 80);
+  return `<section class="section imported-section" data-imported-section="${context}">
+    <div class="page-head"><div><p class="kicker">Vidéos importées</p><h2>Ressources YouTube importées.</h2><p class="section-intro">${imported.length} vidéos issues de data/resources.xml, sans backend ni API YouTube.</p></div></div>
+    <div class="filter-bar imported-tools">
+      <input class="search-input" id="importedSearch" type="search" placeholder="Rechercher une vidéo importée">
+      <select class="select-input" id="importedCategory"><option value="all">Toutes les catégories</option>${categories.map((id) => `<option value="${id}">${escapeHtml(categoryName(id))}</option>`).join("")}</select>
+      <select class="select-input" id="importedSource"><option value="all">Toutes les sources</option>${sources.map((source) => `<option value="${escapeAttr(source)}">${escapeHtml(source)}</option>`).join("")}</select>
+    </div>
+    <div class="imported-video-grid" id="importedVideoGrid">${imported.map(importedVideoCard).join("")}</div>
+    <div id="importedEmpty"></div>
+  </section>`;
+}
+
+function importedVideoCard(video) {
+  const search = `${video.title} ${video.description} ${categoryName(video.category)} ${video.source || ""} ${video.tags.join(" ")}`.toLowerCase();
+  const source = sourceFolder(video.source);
+  return `<article class="imported-video-card" data-imported-video data-category="${escapeAttr(video.category)}" data-source="${escapeAttr(source)}" data-search="${escapeAttr(search)}">
+    <img class="media-thumb" src="${thumb(video.youtubeId)}" alt="Miniature ${escapeAttr(video.title)}" loading="lazy">
+    <div class="card-meta"><span class="badge">${escapeHtml(categoryName(video.category))}</span><span class="level">${escapeHtml(video.level)}</span></div>
+    <h3>${escapeHtml(video.title)}</h3>
+    <p>${escapeHtml(source || video.source || "resources.xml")}</p>
+    <div class="card-actions"><a class="btn primary" href="videos.html?playlist=${encodeURIComponent(video.playlistId)}&video=${encodeURIComponent(video.id)}">Regarder</a><a class="btn" href="playlists.html?admin=imports">Organiser</a></div>
+  </article>`;
 }
 
 function renderPlayerPoster(video) {
-  if (!video?.youtubeId) return `<div class="empty-state"><strong>ID YouTube invalide</strong><p>Ajoute une URL YouTube publique depuis le Studio.</p></div>`;
+  if (!video?.youtubeId) return `<div class="empty-state"><strong>ID YouTube invalide</strong><p>Ajoute une URL YouTube publique depuis l'administration.</p></div>`;
   return `<div class="player-poster" style="background-image:url('${thumb(video.youtubeId, "maxresdefault")}')"><div class="play-stack"><button class="play-orb" data-load-youtube="${video.id}" aria-label="Lire ${escapeAttr(video.title)}">▶</button><strong>${escapeHtml(video.title)}</strong><small>Cliquer pour charger le lecteur YouTube</small></div></div>`;
 }
 
@@ -595,10 +714,6 @@ function goalCard(goal) {
   return `<article class="goal-card"><div class="card-meta"><strong>${escapeHtml(goal.title)}</strong><span>${percent}%</span></div><div class="progress"><span style="width:${percent}%"></span></div><p>${money(goal.current)} / ${money(goal.target)}${goal.deadline ? ` · ${escapeHtml(goal.deadline)}` : ""}</p></article>`;
 }
 
-function renderStudio() {
-  return `<section><div class="page-head"><div><p class="kicker">Studio</p><h1>Administrer la bibliothèque.</h1><p class="section-intro">Ajoute des playlists et des vidéos, puis exporte la bibliothèque quand elle est prête.</p></div></div><div class="studio-grid"><article class="studio-panel"><h2>Nouvelle playlist</h2><form id="playlistForm" class="studio-form"><label>Titre<input class="search-input" name="title" required></label><label>Description<textarea name="description"></textarea></label><label>Catégorie<select class="select-input" name="category">${state.categories.map((cat) => `<option value="${cat.id}">${cat.title}</option>`).join("")}</select></label><label>Niveau<input class="search-input" name="level" value="Débutant"></label><label>Tags<input class="search-input" name="tags" placeholder="Coding, IA, Business"></label><button class="btn primary">Ajouter</button></form></article><article class="studio-panel"><h2>Nouvelle vidéo</h2><form id="videoForm" class="studio-form"><label>Playlist<select class="select-input" name="playlistId">${state.playlists.map((list) => `<option value="${list.id}">${escapeHtml(list.title)}</option>`).join("")}</select></label><label>Titre<input class="search-input" name="title" required></label><label>Description<textarea name="description"></textarea></label><label>Lien ou ID YouTube<input class="search-input" name="youtube" required placeholder="https://www.youtube.com/watch?v=..."></label><label>Durée<input class="search-input" name="duration" value="0:00"></label><label>Niveau<input class="search-input" name="level" value="Débutant"></label><label>Tags<input class="search-input" name="tags"></label><button class="btn primary">Ajouter</button></form></article></div><section class="section"><article class="studio-panel"><h2>Exporter la bibliothèque</h2><button class="btn" id="exportXml">Générer XML</button><pre class="code-box" id="xmlOutput">Clique sur “Générer XML”.</pre></article></section></section>`;
-}
-
 function renderAbout() {
   return `<section><div class="page-head"><div><p class="kicker">Architecture produit</p><h1>Un OS personnel modulaire, vendable et évolutif.</h1><p class="section-intro">La version statique pose les bases : pages séparées, XML, localStorage, design premium. La suite peut migrer vers SQLite, Supabase ou PostgreSQL.</p></div></div><div class="grid-3">${appCard("Phase 1", "Stabiliser vidéo + XML + GitHub Pages.", "videos.html")}${appCard("Phase 2", "File OS, ressources, notes et tags avancés.", "files.html")}${appCard("Phase 3", "Finance, CRM, projets et futur backend.", "finance.html")}</div></section>`;
 }
@@ -609,7 +724,6 @@ function bindPage() {
   if (page === "videos") bindVideos();
   if (page === "files") bindFiles();
   if (page === "finance") bindFinance();
-  if (page === "studio") bindStudio();
 }
 
 function bindHeader() {
@@ -642,7 +756,9 @@ function bindPlaylistFilters() {
     if (button) setPlaylistFilter(button.dataset.category, true);
   });
   document.querySelector("#exportLibraryFromPlaylists")?.addEventListener("click", () => showExport("#playlistXmlOutput", exportXml()));
+  bindImportedFilters();
   bindAdminPanel();
+  if (params.get("admin") === "imports") document.querySelector("#openAdminPanel")?.click();
 }
 
 function bindAdminPanel() {
@@ -666,6 +782,7 @@ function bindAdminPanel() {
   bindCategoryAdmin();
   bindPlaylistAdmin();
   bindVideoAdmin();
+  bindImportedAdmin();
   bindAdminRows();
 }
 
@@ -806,6 +923,48 @@ function bindVideoAdmin() {
   });
 }
 
+function bindImportedAdmin() {
+  document.querySelector("#organizeImportedForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const video = importedVideosForUi().find((item) => importedVideoKey(item) === form.get("videoKey"));
+    if (!video) return;
+
+    let targetList = getPlaylist(form.get("playlistId"));
+    if (form.get("playlistId") === "__new__") {
+      const categoryId = form.get("categoryId") || video.category || state.categories[0]?.id;
+      const title = clean(form.get("newPlaylistTitle")) || `À organiser — ${categoryName(categoryId)}`;
+      targetList = {
+        id: uniqueAdminId(slug(title), state.playlists),
+        title,
+        description: "Playlist créée localement depuis les vidéos importées.",
+        category: categoryId,
+        level: "À classer",
+        tags: ["Importées"],
+        videos: []
+      };
+      state.playlists.push(targetList);
+    }
+    if (!targetList || targetList.imported) return;
+
+    const nextVideo = {
+      ...video,
+      id: uniqueAdminId(slug(video.title), targetList.videos),
+      playlistId: targetList.id,
+      category: targetList.category,
+      imported: false
+    };
+    targetList.videos = targetList.videos.filter((item) => item.youtubeId !== nextVideo.youtubeId);
+    targetList.videos.push(nextVideo);
+    state.playlists.forEach((list) => {
+      if (list.id !== targetList.id) list.videos = list.videos.filter((item) => item.youtubeId !== nextVideo.youtubeId);
+    });
+    state.importedVideos = state.importedVideos.filter((item) => item.youtubeId !== nextVideo.youtubeId);
+    saveAdminSelection({ playlistId: targetList.id, videoId: nextVideo.id });
+    persistAdminChanges(true, false);
+  });
+}
+
 function bindAdminRows() {
   document.querySelectorAll("[data-admin-edit]").forEach((button) => button.addEventListener("click", () => {
     const kind = button.dataset.adminEdit;
@@ -885,34 +1044,29 @@ function bindVideos() {
     });
     document.querySelector("#videoEmpty").innerHTML = count ? "" : `<div class="empty-state"><strong>Aucune vidéo trouvée</strong></div>`;
   });
+  bindImportedFilters();
 }
 
-function bindStudio() {
-  document.querySelector("#playlistForm")?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const additions = readJson(APP.storage.additions, { playlists: [], videos: [] });
-    const item = { id: slug(form.get("title")), title: form.get("title"), description: form.get("description"), category: form.get("category"), level: form.get("level"), tags: splitTags(form.get("tags")), videos: [] };
-    additions.playlists.push(item);
-    saveJson(APP.storage.additions, additions);
-    location.reload();
-  });
+function bindImportedFilters() {
+  document.querySelector("#importedSearch")?.addEventListener("input", filterImportedVideos);
+  document.querySelector("#importedCategory")?.addEventListener("change", filterImportedVideos);
+  document.querySelector("#importedSource")?.addEventListener("change", filterImportedVideos);
+}
 
-  document.querySelector("#videoForm")?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const youtubeId = normalizeYoutubeId(form.get("youtube"));
-    if (!youtubeId) { alert("Lien ou ID YouTube invalide."); return; }
-    const additions = readJson(APP.storage.additions, { playlists: [], videos: [] });
-    const list = getPlaylist(form.get("playlistId"));
-    additions.videos.push({ id: slug(form.get("title")), playlistId: list.id, category: list.category, title: form.get("title"), description: form.get("description"), youtubeId, duration: form.get("duration"), level: form.get("level"), tags: splitTags(form.get("tags")) });
-    saveJson(APP.storage.additions, additions);
-    location.href = `videos.html?playlist=${encodeURIComponent(list.id)}`;
+function filterImportedVideos() {
+  const query = (document.querySelector("#importedSearch")?.value || "").toLowerCase();
+  const category = document.querySelector("#importedCategory")?.value || "all";
+  const source = document.querySelector("#importedSource")?.value || "all";
+  let count = 0;
+  document.querySelectorAll("[data-imported-video]").forEach((card) => {
+    const visible = card.dataset.search.includes(query)
+      && (category === "all" || card.dataset.category === category)
+      && (source === "all" || card.dataset.source === source);
+    card.hidden = !visible;
+    if (visible) count += 1;
   });
-
-  document.querySelector("#exportXml")?.addEventListener("click", () => {
-    document.querySelector("#xmlOutput").textContent = exportXml();
-  });
+  const empty = document.querySelector("#importedEmpty");
+  if (empty) empty.innerHTML = count ? "" : `<div class="empty-state"><strong>Aucune vidéo importée trouvée</strong></div>`;
 }
 
 function bindFiles() {
@@ -1123,7 +1277,16 @@ function normalizeYoutubeId(input) {
   return "";
 }
 
-function allVideos() { return state.playlists.flatMap((list) => list.videos.map((video) => ({ ...video, playlistId: list.id, playlistTitle: list.title, category: list.category }))); }
+function allVideos() { return state.playlists.flatMap((list) => list.videos.map((video) => ({ ...video, tags: video.tags || [], playlistId: list.id, playlistTitle: list.title, category: video.category || list.category, imported: Boolean(video.imported || list.imported) }))); }
+function regularPlaylists() { return state.playlists.filter((list) => !list.imported); }
+function importedVideosForUi() { return allVideos().filter((video) => video.imported && video.youtubeId); }
+function unorganizedImportedVideos() {
+  const organizedIds = new Set(regularPlaylists().flatMap((list) => list.videos.map((video) => video.youtubeId).filter(Boolean)));
+  return importedVideosForUi().filter((video) => !organizedIds.has(video.youtubeId));
+}
+function importedVideoKey(video) { return `${video.playlistId}:${video.id}`; }
+function importedPlaylistId(folderId) { return `imported-${slug(folderId)}`; }
+function sourceFolder(source) { return String(source || "").split("/").filter(Boolean).slice(0, 2).join("/") || ""; }
 function financeTotal(type) { return state.finance.transactions.filter((item) => item.type === type).reduce((total, item) => total + Number(item.amount || 0), 0); }
 function money(value) { return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(Number(value || 0)); }
 function xmlDoc(xmlText) { const doc = new DOMParser().parseFromString(xmlText, "application/xml"); if (doc.querySelector("parsererror")) throw new Error("XML invalide."); return doc; }

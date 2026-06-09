@@ -125,3 +125,41 @@ test("video intelligence enriches titles descriptions tags and levels", async ({
   await expect(page.locator("#playerInfo")).toContainText("JavaScript");
   await expect(page.locator("#videoList")).toContainText("JavaScript");
 });
+
+test("imported YouTube resources are visible searchable and organizable", async ({ page }) => {
+  await page.goto("/videos.html");
+  await page.evaluate(() => {
+    localStorage.removeItem("visionhub-v2-library");
+    localStorage.removeItem("visionhub-v2-admin");
+    localStorage.removeItem("visionhub-v2-active");
+  });
+  await page.reload();
+
+  await expect(page.getByRole("heading", { name: "Ressources YouTube importées." })).toBeVisible();
+  await expect(page.locator("[data-imported-video]")).toHaveCount(174);
+  await expect(page.locator("#playlistSelect")).toContainText("Ressources importées");
+
+  const firstTitle = await page.locator("#playerInfo h2").textContent();
+  await page.locator("[data-video-row]").nth(1).click();
+  await expect(page.locator("#playerInfo h2")).not.toHaveText(firstTitle || "");
+
+  await page.locator("#importedSearch").fill("Python");
+  await expect(page.locator("[data-imported-video]:visible").first()).toBeVisible();
+  const pythonCount = await page.locator("[data-imported-video]:visible").count();
+  expect(pythonCount).toBeGreaterThan(0);
+  expect(pythonCount).toBeLessThan(174);
+
+  await page.goto("/playlists.html?admin=imports");
+  await expect(page.locator("#adminDrawer")).toBeVisible();
+  await expect(page.locator("#organizeImportedForm select[name='videoKey'] option")).toHaveCount(174);
+  await page.locator("#organizeImportedForm input[name='newPlaylistTitle']").fill("Importées Test");
+  await page.locator("#organizeImportedForm").getByRole("button", { name: "Ajouter à la playlist" }).click();
+  await expect.poll(async () => page.evaluate(() => {
+    const library = JSON.parse(localStorage.getItem("visionhub-v2-library"));
+    return library.playlists.find((playlist) => playlist.id === "importees-test")?.videos.length || 0;
+  })).toBe(1);
+
+  await page.goto("/files.html");
+  await expect(page.locator("[data-file-card]").filter({ hasText: "Développement, IA, programmation" }).first()).toBeVisible();
+  await expect(page.locator("[data-file-card]").filter({ hasText: "Cet outil IA permet de créer des apps" })).toBeVisible();
+});

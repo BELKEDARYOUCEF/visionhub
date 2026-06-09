@@ -3,6 +3,7 @@
   <categories>
     <category id="web" title="Développement Web" icon="&lt;/&gt;" color="cyan">JavaScript, interfaces, CSS, architecture front-end et projets web.</category>
     <category id="ia" title="Intelligence Artificielle" icon="AI" color="violet">Prompts, agents, automatisation, outils IA et workflows avancés.</category>
+    <category id="informatique" title="Informatique &amp; IA" icon="IT" color="cyan">Vidéos sur l'informatique, les outils numériques, l'IA et les opportunités tech.</category>
     <category id="design" title="Design UI/UX" icon="UX" color="pink">Design systems, expérience utilisateur, inspiration et identité visuelle.</category>
     <category id="business" title="Business &amp; Startup" icon="$" color="orange">Offres, stratégie, marketing, acquisition et exécution business.</category>
     <category id="productivity" title="Productivité" icon="✓" color="green">Organisation personnelle, focus, routines et apprentissage structuré.</category>
@@ -29,6 +30,22 @@
       </video>
       <video id="prompt-method" youtubeId="dOxUroR57xs" duration="12:10" level="Débutant" title="Prompt Engineering Method" tags="Prompt,IA">
         <description>Structurer ses prompts pour obtenir des réponses plus fiables.</description>
+      </video>
+    </playlist>
+
+    <playlist id="informatique-ia-tools" category="informatique" level="Débutant" title="Vidéos YouTube sur l'informatique" tags="Informatique,IA,Outils,Tech">
+      <description>Playlist créée depuis le fichier `Video YouTube sur l'informatique .txt` du dossier `a faire`.</description>
+      <video id="informatique-video-1" youtubeId="gGquFWBY5cs" duration="À vérifier" level="Débutant" title="Vidéo informatique à regarder" tags="Informatique,Tech">
+        <description>Lien YouTube importé depuis le fichier de tâches. Le titre public n'a pas pu être récupéré automatiquement.</description>
+      </video>
+      <video id="outils-ia-gratuits" youtubeId="9TwedVHohUc" duration="À vérifier" level="Débutant" title="J'ai testé 74 outils IA gratuits et voici les meilleurs" tags="IA,Outils,Productivité">
+        <description>Sélection d'outils IA gratuits à tester et organiser dans VisionHub.</description>
+      </video>
+      <video id="business-ia-2024" youtubeId="NjTbdO-krH8" duration="À vérifier" level="Intermédiaire" title="11 Business d'Intelligence Artificielle à Lancer en 2024 (10k/Mois)" tags="IA,Business,Startup">
+        <description>Idées de business autour de l'intelligence artificielle et de l'automatisation.</description>
+      </video>
+      <video id="informatique-video-4" youtubeId="8LHEwkV7QpY" duration="À vérifier" level="Débutant" title="Vidéo informatique et IA à regarder" tags="Informatique,IA,Tech">
+        <description>Lien YouTube importé depuis le fichier de tâches. Le titre public n'a pas pu être récupéré automatiquement.</description>
       </video>
     </playlist>
 

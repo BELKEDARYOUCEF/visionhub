@@ -89,3 +89,13 @@ Le travail effectué couvre une étape complète d'expansion, pas tout le plan d
 - GitHub Pages a reconstruit le site avec succès après le push.
 
 Ce qui reste à faire : Studio avancé complet, édition/suppression, drag and drop, import XML, graphiques finance, tests Playwright, puis migration backend/SQL.
+
+## Ajout playlist informatique — 09 juin 2026
+
+Une nouvelle playlist a été ajoutée dans `data/library.xml` depuis le fichier `/home/yobel/Bureau/a faire/Video YouTube sur l'informatique .txt`.
+
+- Nouvelle catégorie : `informatique`, affichée comme `Informatique & IA`.
+- Nouvelle playlist : `informatique-ia-tools`, affichée comme `Vidéos YouTube sur l'informatique`.
+- 4 vidéos YouTube importées : `gGquFWBY5cs`, `9TwedVHohUc`, `NjTbdO-krH8`, `8LHEwkV7QpY`.
+- Les titres publics ont été récupérés pour 2 vidéos via YouTube oEmbed.
+- Les 2 autres vidéos ont été ajoutées avec des titres de secours, car YouTube oEmbed a répondu `Unauthorized`.

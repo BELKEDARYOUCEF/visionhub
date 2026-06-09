@@ -45,7 +45,7 @@ Chaque évolution doit être traitée comme une tâche indépendante :
 
 ## Prochaines tâches recommandées
 
-### Tâche 1 — Stabilisation vidéo
+### Tâche 1 — Stabilisation vidéo — fait
 
 Valider le lecteur en local HTTP et sur GitHub Pages. Ajouter des tests Playwright plus tard.
 
@@ -53,13 +53,13 @@ Valider le lecteur en local HTTP et sur GitHub Pages. Ajouter des tests Playwrig
 
 Ajouter modification/suppression, drag & drop de l'ordre des vidéos, import XML et validation des IDs YouTube.
 
-### Tâche 3 — File OS
+### Tâche 3 — File OS — base faite le 09 juin 2026
 
-Transformer `files.html` en vrai espace : dossiers, notes, liens, tags, recherche, statut, favoris, export.
+`files.html` est maintenant un espace de travail avec `data/workspace.xml`, dossiers, items, statuts, tags, recherche, vues grille/liste, ajout local `localStorage` et export XML.
 
-### Tâche 4 — Finance cockpit
+### Tâche 4 — Finance cockpit — base faite le 09 juin 2026
 
-Créer revenus, dépenses, objectifs, graphiques simples et export CSV/XML.
+`finance.html` charge `data/finance.xml`, affiche revenus/dépenses/solde, liste les transactions, suit des objectifs, sauvegarde les ajouts en `localStorage` et exporte CSV/XML. Les graphiques restent à ajouter.
 
 ### Tâche 5 — Auth locale puis backend
 
@@ -73,5 +73,6 @@ Quand la version statique est stable, migrer vers SQLite/Supabase/PostgreSQL ave
 
 - GitHub Pages ne permet pas d'écrire dans les fichiers XML depuis le navigateur.
 - Les ajouts Studio sont donc sauvegardés en `localStorage` puis exportés.
+- Les ajouts File OS et Finance suivent la même logique : sauvegarde locale puis export XML/CSV.
 - Certaines vidéos YouTube peuvent refuser l'intégration selon les paramètres du propriétaire.
 - Les embeds TikTok/Instagram devront être ajoutés dans une tâche séparée après stabilisation YouTube.

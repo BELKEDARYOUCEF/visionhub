@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workspace version="1.0" updated="2026-06-09">
+  <folders>
+    <folder id="business" title="Business" icon="briefcase" status="Actif" tags="Offres,Clients,Finance">
+      <description>Documents liés aux offres, prospects, clients et suivi commercial.</description>
+      <item id="offer-map" title="Carte des offres" type="note" status="À structurer" url="" tags="Offre,Positionnement">Clarifier les offres vendables et les prochaines actions.</item>
+      <item id="client-research" title="Recherche clients" type="table" status="En cours" url="" tags="Prospection,Marché">Centraliser les segments clients et objections fréquentes.</item>
+    </folder>
+    <folder id="learning" title="Apprentissage" icon="book" status="Actif" tags="Cours,Notes,Vidéos">
+      <description>Base de connaissances personnelle pour vidéos, prompts et notes de formation.</description>
+      <item id="web-notes" title="Notes développement web" type="note" status="Actif" url="" tags="HTML,CSS,JavaScript">Notes techniques liées aux playlists VisionHub.</item>
+      <item id="ai-prompts" title="Bibliothèque de prompts" type="database" status="Actif" url="" tags="IA,Prompts">Prompts utiles pour produire, analyser et apprendre.</item>
+    </folder>
+    <folder id="resources" title="Ressources" icon="link" status="À enrichir" tags="Liens,Outils,Documentation">
+      <description>Liens externes, outils, documents et ressources à garder sous la main.</description>
+      <item id="github-pages-docs" title="GitHub Pages" type="lien" status="Référence" url="https://docs.github.com/pages" tags="Déploiement,Docs">Documentation officielle pour le déploiement statique.</item>
+    </folder>
+  </folders>
+</workspace>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<finance version="1.0" updated="2026-06-09">
+  <transactions>
+    <transaction id="starter-revenue" type="revenue" title="Revenu exemple" category="Prestation" amount="1200" date="2026-06-09">Entrée de démonstration à remplacer par une donnée réelle.</transaction>
+    <transaction id="starter-expense" type="expense" title="Outils mensuels" category="Logiciels" amount="120" date="2026-06-09">Dépense de démonstration pour tester le cockpit.</transaction>
+  </transactions>
+  <goals>
+    <goal id="cash-buffer" title="Réserve de sécurité" category="Budget" target="3000" current="900" deadline="2026-09-30" />
+    <goal id="monthly-revenue" title="Objectif revenu mensuel" category="Business" target="2500" current="1200" deadline="2026-06-30" />
+  </goals>
+</finance>

@@ -12,6 +12,8 @@ Construire une fondation propre avant d'ajouter trop de fonctionnalités :
 - un lecteur YouTube robuste qui évite l'écran Error 153 en ouverture directe `file://` ;
 - une sauvegarde locale `localStorage` pour les ajouts depuis Studio ;
 - un export XML pour versionner les modifications sur GitHub ;
+- un File OS avec dossiers, items, statuts, tags, recherche, vues grille/liste et export XML ;
+- un cockpit finance avec revenus, dépenses, objectifs, persistance locale et export CSV/XML ;
 - une architecture prête à migrer plus tard vers SQLite, Supabase ou PostgreSQL.
 
 ## Structure
@@ -29,7 +31,9 @@ visionhub-pro-foundation/
 ├── app.js
 ├── package.json
 └── data/
-    └── library.xml
+    ├── library.xml
+    ├── workspace.xml
+    └── finance.xml
 ```
 
 ## Lancer en local
@@ -91,6 +95,18 @@ Exemple :
 </playlist>
 ```
 
+Les dossiers et ressources du File OS sont dans :
+
+```text
+data/workspace.xml
+```
+
+Le cockpit finance charge ses transactions et objectifs depuis :
+
+```text
+data/finance.xml
+```
+
 ## Ajouter depuis Studio
 
 `studio.html` ajoute les nouvelles playlists et vidéos dans `localStorage`, car un site GitHub Pages ne peut pas écrire directement dans `data/library.xml`.
@@ -102,6 +118,12 @@ Pour versionner les changements :
 3. cliquer sur `Générer XML` ;
 4. copier le XML dans `data/library.xml` ;
 5. commit/push sur GitHub.
+
+## File OS et Finance
+
+`files.html` permet de rechercher les dossiers et items, de basculer entre grille et liste, d’ajouter des dossiers/items dans `localStorage`, puis d’exporter un nouveau `workspace.xml`.
+
+`finance.html` permet d’ajouter des revenus, dépenses et objectifs en local, puis d’exporter les transactions en CSV ou la base complète en XML. Le module est un suivi léger, pas une comptabilité officielle.
 
 ## Déploiement GitHub Pages
 
@@ -126,3 +148,5 @@ Puis tester manuellement :
 - vérifier que le lecteur change ;
 - ajouter une vidéo via `studio.html` ;
 - exporter le XML.
+- ouvrir `files.html`, rechercher un dossier et exporter le workspace ;
+- ouvrir `finance.html`, ajouter une transaction et exporter CSV/XML.

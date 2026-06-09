@@ -1,9 +1,13 @@
 const APP = {
   libraryUrl: "data/library.xml",
+  workspaceUrl: "data/workspace.xml",
+  financeUrl: "data/finance.xml",
   storage: {
     additions: "visionhub-v2-additions",
     favorites: "visionhub-v2-favorites",
-    active: "visionhub-v2-active"
+    active: "visionhub-v2-active",
+    workspace: "visionhub-v2-workspace",
+    finance: "visionhub-v2-finance"
   }
 };
 
@@ -14,7 +18,7 @@ let state = {
   categories: [],
   playlists: [],
   files: [],
-  finance: [],
+  finance: { transactions: [], goals: [] },
   favorites: readJson(APP.storage.favorites, []),
   active: readJson(APP.storage.active, {})
 };
@@ -38,6 +42,10 @@ async function init() {
   }
 
   mergeLocalAdditions();
+  await loadWorkspace();
+  await loadFinance();
+  mergeLocalWorkspace();
+  mergeLocalFinance();
   route();
 }
 
@@ -50,6 +58,18 @@ async function loadXmlText() {
   } catch (error) {
     console.warn("Base XML indisponible, fallback utilisé.", error);
     return fallbackXml;
+  }
+}
+
+async function loadDataXml(url) {
+  if (location.protocol === "file:") return "";
+  try {
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) throw new Error(`XML HTTP ${response.status}`);
+    return await response.text();
+  } catch (error) {
+    console.warn(`${url} indisponible. Données intégrées conservées.`, error);
+    return "";
   }
 }
 
@@ -103,12 +123,75 @@ function parseLibrary(xmlText) {
     }))
   }));
 
-  state.finance = [...doc.querySelectorAll("finance > metric")].map((node) => ({
+  const financeMetrics = [...doc.querySelectorAll("finance > metric")].map((node) => ({
     id: node.getAttribute("id"),
     title: node.getAttribute("title"),
     value: node.getAttribute("value") || "0",
     unit: node.getAttribute("unit") || ""
   }));
+  state.finance = {
+    transactions: [
+      { id: "seed-revenue", type: "revenue", title: "Revenus suivis", category: "Base", amount: Number(financeMetrics.find((item) => item.id === "revenue")?.value || 0), date: "2026-06-09" },
+      { id: "seed-expense", type: "expense", title: "Dépenses prévues", category: "Base", amount: Number(financeMetrics.find((item) => item.id === "expenses")?.value || 0), date: "2026-06-09" }
+    ].filter((item) => item.amount > 0),
+    goals: []
+  };
+}
+
+async function loadWorkspace() {
+  const xmlText = await loadDataXml(APP.workspaceUrl);
+  if (!xmlText) return;
+  try {
+    const doc = xmlDoc(xmlText);
+    state.files = [...doc.querySelectorAll("folder")].map((node) => ({
+      id: node.getAttribute("id"),
+      title: node.getAttribute("title"),
+      icon: node.getAttribute("icon") || "folder",
+      status: node.getAttribute("status") || "Actif",
+      tags: splitTags(node.getAttribute("tags")),
+      description: clean(childElement(node, "description")?.textContent),
+      files: childElements(node, "item").map((child) => ({
+        id: child.getAttribute("id"),
+        title: child.getAttribute("title"),
+        type: child.getAttribute("type") || "note",
+        status: child.getAttribute("status") || "Actif",
+        url: child.getAttribute("url") || "",
+        tags: splitTags(child.getAttribute("tags")),
+        note: clean(child.textContent)
+      }))
+    }));
+  } catch (error) {
+    console.error("Erreur dans data/workspace.xml. Données fichiers intégrées conservées.", error);
+  }
+}
+
+async function loadFinance() {
+  const xmlText = await loadDataXml(APP.financeUrl);
+  if (!xmlText) return;
+  try {
+    const doc = xmlDoc(xmlText);
+    state.finance = {
+      transactions: [...doc.querySelectorAll("transaction")].map((node) => ({
+        id: node.getAttribute("id"),
+        type: node.getAttribute("type") || "expense",
+        title: node.getAttribute("title"),
+        category: node.getAttribute("category") || "Général",
+        amount: Number(node.getAttribute("amount") || 0),
+        date: node.getAttribute("date") || "",
+        note: clean(node.textContent)
+      })),
+      goals: [...doc.querySelectorAll("goal")].map((node) => ({
+        id: node.getAttribute("id"),
+        title: node.getAttribute("title"),
+        target: Number(node.getAttribute("target") || 0),
+        current: Number(node.getAttribute("current") || 0),
+        deadline: node.getAttribute("deadline") || "",
+        category: node.getAttribute("category") || "Objectif"
+      }))
+    };
+  } catch (error) {
+    console.error("Erreur dans data/finance.xml. Données finance intégrées conservées.", error);
+  }
 }
 
 function mergeLocalAdditions() {
@@ -119,6 +202,27 @@ function mergeLocalAdditions() {
   additions.videos?.forEach((video) => {
     const playlist = state.playlists.find((item) => item.id === video.playlistId);
     if (playlist && !playlist.videos.some((item) => item.id === video.id)) playlist.videos.push({ ...video, category: playlist.category });
+  });
+}
+
+function mergeLocalWorkspace() {
+  const additions = readJson(APP.storage.workspace, { folders: [], files: [] });
+  additions.folders?.forEach((folder) => {
+    if (!state.files.some((item) => item.id === folder.id)) state.files.push({ ...folder, files: [] });
+  });
+  additions.files?.forEach((file) => {
+    const folder = state.files.find((item) => item.id === file.folderId);
+    if (folder && !folder.files.some((item) => item.id === file.id)) folder.files.push(file);
+  });
+}
+
+function mergeLocalFinance() {
+  const additions = readJson(APP.storage.finance, { transactions: [], goals: [] });
+  additions.transactions?.forEach((item) => {
+    if (!state.finance.transactions.some((tx) => tx.id === item.id)) state.finance.transactions.push(item);
+  });
+  additions.goals?.forEach((item) => {
+    if (!state.finance.goals.some((goal) => goal.id === item.id)) state.finance.goals.push(item);
   });
 }
 
@@ -225,11 +329,42 @@ function videoRow(video, playlistId, isActive) {
 }
 
 function renderFiles() {
-  return `<section><div class="page-head"><div><p class="kicker">File OS</p><h1>Organisation des fichiers.</h1><p class="section-intro">Une structure inspirée Drive, Notion et Mega : dossiers, ressources, statuts et tags.</p></div></div><div class="file-grid">${state.files.map((folder) => `<article class="file-card"><span class="category-icon">${escapeHtml(folder.icon)}</span><h3>${escapeHtml(folder.title)}</h3><div class="chip-row">${folder.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div><div class="section">${folder.files.map((file) => `<p><strong>${escapeHtml(file.title)}</strong> · ${escapeHtml(file.type)} · <span class="level">${escapeHtml(file.status)}</span></p>`).join("")}</div></article>`).join("")}</div></section>`;
+  return `<section><div class="page-head"><div><p class="kicker">File OS</p><h1>Organisation des fichiers.</h1><p class="section-intro">Dossiers, notes, liens, tags, statuts, recherche et export versionnable.</p></div><button class="btn" id="exportWorkspace">Exporter XML</button></div>
+    <div class="filter-bar workspace-tools"><input class="search-input" id="fileSearch" type="search" placeholder="Rechercher un dossier, lien, note, tag ou statut"><div class="filter-tabs" id="fileView"><button class="tab-btn active" data-view="grid">Grille</button><button class="tab-btn" data-view="list">Liste</button></div></div>
+    <div class="workspace-layout">
+      <div><div class="file-grid" id="fileGrid">${state.files.map(folderCard).join("")}</div><div id="fileEmpty"></div></div>
+      <aside class="studio-panel"><h2>Ajouter localement</h2><form id="folderForm" class="studio-form"><label>Dossier<input class="search-input" name="title" required></label><label>Description<textarea name="description"></textarea></label><label>Tags<input class="search-input" name="tags" placeholder="Clients, Docs, Priorité"></label><button class="btn primary">Créer dossier</button></form><hr class="soft-line"><form id="fileForm" class="studio-form"><label>Dans<select class="select-input" name="folderId">${state.files.map((folder) => `<option value="${folder.id}">${escapeHtml(folder.title)}</option>`).join("")}</select></label><label>Titre<input class="search-input" name="title" required></label><label>Type<select class="select-input" name="type"><option>note</option><option>lien</option><option>document</option><option>table</option></select></label><label>URL<input class="search-input" name="url" placeholder="https://..."></label><label>Statut<input class="search-input" name="status" value="Actif"></label><label>Tags<input class="search-input" name="tags"></label><button class="btn primary">Ajouter item</button></form></aside>
+    </div><pre class="code-box export-box" id="workspaceOutput" hidden></pre></section>`;
 }
 
 function renderFinance() {
-  return `<section><div class="page-head"><div><p class="kicker">Finance cockpit</p><h1>Suivi finance léger.</h1><p class="section-intro">Première étape avant un vrai module SQL : revenus, dépenses, budget, objectifs et export.</p></div></div><div class="grid-3">${state.finance.map((metric) => `<article class="metric-card"><span class="eyebrow">${escapeHtml(metric.title)}</span><strong>${escapeHtml(metric.value)}${escapeHtml(metric.unit)}</strong><p>Valeur de démonstration à remplacer plus tard par une vraie base.</p></article>`).join("")}</div><section class="section"><article class="content-card"><h2>Roadmap finance</h2><p>Étape future : transactions, catégories, factures, objectifs mensuels, graphiques, import CSV et migration SQL.</p></article></section></section>`;
+  const revenue = financeTotal("revenue");
+  const expenses = financeTotal("expense");
+  const balance = revenue - expenses;
+  return `<section><div class="page-head"><div><p class="kicker">Finance cockpit</p><h1>Suivi finance léger.</h1><p class="section-intro">Revenus, dépenses, budget, objectifs et export. Ce module n’est pas une comptabilité officielle.</p></div><div class="hero-actions"><button class="btn" id="exportFinanceCsv">CSV</button><button class="btn" id="exportFinanceXml">XML</button></div></div>
+    <div class="grid-3"><article class="metric-card"><span class="eyebrow">Revenus</span><strong>${money(revenue)}</strong><p>Total des entrées suivies.</p></article><article class="metric-card"><span class="eyebrow">Dépenses</span><strong>${money(expenses)}</strong><p>Total des sorties prévues ou payées.</p></article><article class="metric-card"><span class="eyebrow">Solde</span><strong>${money(balance)}</strong><p>Budget disponible estimé.</p></article></div>
+    <div class="finance-layout section"><article class="studio-panel"><h2>Transactions</h2><form id="transactionForm" class="studio-form compact-form"><select class="select-input" name="type"><option value="revenue">Revenu</option><option value="expense">Dépense</option></select><input class="search-input" name="title" placeholder="Libellé" required><input class="search-input" name="category" placeholder="Catégorie" required><input class="search-input" name="amount" type="number" min="0" step="0.01" placeholder="Montant" required><input class="search-input" name="date" type="date" required><button class="btn primary">Ajouter</button></form><div class="transaction-list">${state.finance.transactions.map(transactionRow).join("") || `<div class="empty-state"><strong>Aucune transaction</strong></div>`}</div></article>
+    <aside class="studio-panel"><h2>Objectifs</h2><form id="goalForm" class="studio-form"><label>Objectif<input class="search-input" name="title" required></label><label>Cible<input class="search-input" name="target" type="number" min="0" step="0.01" required></label><label>Actuel<input class="search-input" name="current" type="number" min="0" step="0.01" value="0"></label><label>Échéance<input class="search-input" name="deadline" type="date"></label><button class="btn primary">Ajouter objectif</button></form><div class="goal-list">${state.finance.goals.map(goalCard).join("") || `<p class="meta">Ajoute un objectif pour suivre sa progression.</p>`}</div></aside></div><pre class="code-box export-box" id="financeOutput" hidden></pre></section>`;
+}
+
+function folderCard(folder) {
+  const search = `${folder.title} ${folder.description} ${folder.status} ${folder.tags.join(" ")} ${folder.files.map((file) => `${file.title} ${file.type} ${file.status} ${file.tags?.join(" ")} ${file.note}`).join(" ")}`.toLowerCase();
+  return `<article class="file-card" data-file-card data-search="${escapeAttr(search)}"><div class="file-card-head"><span class="category-icon">${escapeHtml(folder.icon)}</span><span class="level">${escapeHtml(folder.status || "Actif")}</span></div><h3>${escapeHtml(folder.title)}</h3><p>${escapeHtml(folder.description || "Dossier de travail VisionHub.")}</p><div class="chip-row">${folder.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div><div class="resource-list">${folder.files.map(resourceRow).join("") || `<p class="meta">Aucun item.</p>`}</div></article>`;
+}
+
+function resourceRow(file) {
+  const title = escapeHtml(file.title);
+  const label = `<strong>${title}</strong><span>${escapeHtml(file.type)} · ${escapeHtml(file.status)}</span>`;
+  return file.url ? `<a class="resource-row" href="${escapeAttr(file.url)}" target="_blank" rel="noreferrer">${label}</a>` : `<div class="resource-row">${label}</div>`;
+}
+
+function transactionRow(item) {
+  return `<div class="transaction-row"><span><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.category)} · ${escapeHtml(item.date)}</small></span><strong class="${item.type === "revenue" ? "amount-good" : "amount-bad"}">${item.type === "revenue" ? "+" : "-"}${money(item.amount)}</strong></div>`;
+}
+
+function goalCard(goal) {
+  const percent = goal.target ? Math.min(100, Math.round((goal.current / goal.target) * 100)) : 0;
+  return `<article class="goal-card"><div class="card-meta"><strong>${escapeHtml(goal.title)}</strong><span>${percent}%</span></div><div class="progress"><span style="width:${percent}%"></span></div><p>${money(goal.current)} / ${money(goal.target)}${goal.deadline ? ` · ${escapeHtml(goal.deadline)}` : ""}</p></article>`;
 }
 
 function renderStudio() {
@@ -244,6 +379,8 @@ function bindPage() {
   bindFavorites();
   if (page === "playlists") bindPlaylistFilters();
   if (page === "videos") bindVideos();
+  if (page === "files") bindFiles();
+  if (page === "finance") bindFinance();
   if (page === "studio") bindStudio();
 }
 
@@ -368,10 +505,92 @@ function bindStudio() {
   });
 }
 
+function bindFiles() {
+  document.querySelector("#fileSearch")?.addEventListener("input", filterFiles);
+  document.querySelector("#fileView")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-view]");
+    if (!button) return;
+    document.querySelectorAll("#fileView .tab-btn").forEach((item) => item.classList.toggle("active", item === button));
+    document.querySelector("#fileGrid")?.classList.toggle("list-view", button.dataset.view === "list");
+  });
+  document.querySelector("#folderForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const additions = readJson(APP.storage.workspace, { folders: [], files: [] });
+    additions.folders.push({ id: uniqueId(slug(form.get("title"))), title: form.get("title"), icon: "folder", status: "Actif", description: form.get("description"), tags: splitTags(form.get("tags")) });
+    saveJson(APP.storage.workspace, additions);
+    location.reload();
+  });
+  document.querySelector("#fileForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const additions = readJson(APP.storage.workspace, { folders: [], files: [] });
+    additions.files.push({ id: uniqueId(slug(form.get("title"))), folderId: form.get("folderId"), title: form.get("title"), type: form.get("type"), url: form.get("url"), status: form.get("status"), tags: splitTags(form.get("tags")), note: "" });
+    saveJson(APP.storage.workspace, additions);
+    location.reload();
+  });
+  document.querySelector("#exportWorkspace")?.addEventListener("click", () => showExport("#workspaceOutput", exportWorkspaceXml()));
+}
+
+function filterFiles() {
+  const query = (document.querySelector("#fileSearch")?.value || "").toLowerCase();
+  let count = 0;
+  document.querySelectorAll("[data-file-card]").forEach((card) => {
+    const visible = card.dataset.search.includes(query);
+    card.hidden = !visible;
+    if (visible) count += 1;
+  });
+  document.querySelector("#fileEmpty").innerHTML = count ? "" : `<div class="empty-state"><strong>Aucun fichier trouvé</strong></div>`;
+}
+
+function bindFinance() {
+  document.querySelector("#transactionForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const additions = readJson(APP.storage.finance, { transactions: [], goals: [] });
+    additions.transactions.push({ id: uniqueId(slug(form.get("title"))), type: form.get("type"), title: form.get("title"), category: form.get("category"), amount: Number(form.get("amount")), date: form.get("date"), note: "" });
+    saveJson(APP.storage.finance, additions);
+    location.reload();
+  });
+  document.querySelector("#goalForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const additions = readJson(APP.storage.finance, { transactions: [], goals: [] });
+    additions.goals.push({ id: uniqueId(slug(form.get("title"))), title: form.get("title"), target: Number(form.get("target")), current: Number(form.get("current")), deadline: form.get("deadline"), category: "Objectif" });
+    saveJson(APP.storage.finance, additions);
+    location.reload();
+  });
+  document.querySelector("#exportFinanceCsv")?.addEventListener("click", () => showExport("#financeOutput", exportFinanceCsv()));
+  document.querySelector("#exportFinanceXml")?.addEventListener("click", () => showExport("#financeOutput", exportFinanceXml()));
+}
+
+function showExport(selector, value) {
+  const output = document.querySelector(selector);
+  output.hidden = false;
+  output.textContent = value;
+  output.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
 function exportXml() {
   const categoryXml = state.categories.map((cat) => `    <category id="${escXml(cat.id)}" title="${escXml(cat.title)}" icon="${escXml(cat.icon)}">${escXml(cat.description)}</category>`).join("\n");
   const playlistXml = state.playlists.map((list) => `    <playlist id="${escXml(list.id)}" category="${escXml(list.category)}" level="${escXml(list.level)}" title="${escXml(list.title)}" tags="${escXml(list.tags.join(","))}">\n      <description>${escXml(list.description)}</description>\n${list.videos.map((video) => `      <video id="${escXml(video.id)}" youtubeId="${escXml(video.youtubeId)}" duration="${escXml(video.duration)}" level="${escXml(video.level)}" title="${escXml(video.title)}" tags="${escXml(video.tags.join(","))}">\n        <description>${escXml(video.description)}</description>\n      </video>`).join("\n")}\n    </playlist>`).join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>\n<library version="1.0">\n  <categories>\n${categoryXml}\n  </categories>\n  <playlists>\n${playlistXml}\n  </playlists>\n</library>`;
+}
+
+function exportWorkspaceXml() {
+  const folders = state.files.map((folder) => `    <folder id="${escXml(folder.id)}" title="${escXml(folder.title)}" icon="${escXml(folder.icon)}" status="${escXml(folder.status || "Actif")}" tags="${escXml(folder.tags.join(","))}">\n      <description>${escXml(folder.description)}</description>\n${folder.files.map((file) => `      <item id="${escXml(file.id)}" title="${escXml(file.title)}" type="${escXml(file.type)}" status="${escXml(file.status)}" url="${escXml(file.url)}" tags="${escXml((file.tags || []).join(","))}">${escXml(file.note)}</item>`).join("\n")}\n    </folder>`).join("\n");
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<workspace version="1.0" updated="2026-06-09">\n  <folders>\n${folders}\n  </folders>\n</workspace>`;
+}
+
+function exportFinanceXml() {
+  const transactions = state.finance.transactions.map((item) => `    <transaction id="${escXml(item.id)}" type="${escXml(item.type)}" title="${escXml(item.title)}" category="${escXml(item.category)}" amount="${escXml(item.amount)}" date="${escXml(item.date)}">${escXml(item.note)}</transaction>`).join("\n");
+  const goals = state.finance.goals.map((goal) => `    <goal id="${escXml(goal.id)}" title="${escXml(goal.title)}" category="${escXml(goal.category)}" target="${escXml(goal.target)}" current="${escXml(goal.current)}" deadline="${escXml(goal.deadline)}" />`).join("\n");
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<finance version="1.0" updated="2026-06-09">\n  <transactions>\n${transactions}\n  </transactions>\n  <goals>\n${goals}\n  </goals>\n</finance>`;
+}
+
+function exportFinanceCsv() {
+  const rows = [["type", "title", "category", "amount", "date"], ...state.finance.transactions.map((item) => [item.type, item.title, item.category, item.amount, item.date])];
+  return rows.map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
 }
 
 function youtubeEmbedUrl(youtubeId) {
@@ -401,6 +620,12 @@ function normalizeYoutubeId(input) {
 }
 
 function allVideos() { return state.playlists.flatMap((list) => list.videos.map((video) => ({ ...video, playlistId: list.id, playlistTitle: list.title, category: list.category }))); }
+function financeTotal(type) { return state.finance.transactions.filter((item) => item.type === type).reduce((total, item) => total + Number(item.amount || 0), 0); }
+function money(value) { return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(Number(value || 0)); }
+function xmlDoc(xmlText) { const doc = new DOMParser().parseFromString(xmlText, "application/xml"); if (doc.querySelector("parsererror")) throw new Error("XML invalide."); return doc; }
+function childElements(node, tagName) { return [...node.children].filter((child) => child.tagName === tagName); }
+function childElement(node, tagName) { return childElements(node, tagName)[0]; }
+function uniqueId(base) { return `${base || "item"}-${Date.now().toString(36)}`; }
 function firstPlaylist() { return state.playlists.find((list) => list.videos.length) || state.playlists[0]; }
 function getPlaylist(id) { return state.playlists.find((list) => list.id === id) || firstPlaylist(); }
 function getVideo(list, id) { return list?.videos?.find((video) => video.id === id) || list?.videos?.[0]; }

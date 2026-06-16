@@ -1,10 +1,25 @@
-# Suivi du projet — VisionHub Pro Foundation
+# Suivi du projet — Lumen
 
-Dernière mise à jour : 10 juin 2026
+Dernière mise à jour : 16 juin 2026
+
+## Phase A — Design & refonte visuelle (en cours)
+
+### Tâche A1 — Renommage Lumen → Lumen ✅
+
+Effectué le 16 juin 2026 :
+
+- Tous les fichiers HTML (index, videos, playlists, files, finance, about) mis à jour : `<title>`, `<meta description>`, header, footer.
+- Logo SVG `lumen-icon-glass.svg` ajouté comme favicon sur chaque page.
+- Icône SVG dans le header à la place du texte « VH ».
+- Sous-titre de marque : `Personal knowledge & media library`.
+- Clés `localStorage` migrées de `visionhub-v2-*` vers `lumen-v2-*` avec migration douce au chargement (copie automatique si ancienne clé existe).
+- `app.js`, `README.md`, `SUIVI_PROJET.md` mis à jour.
+
+---
 
 ## Décision Actuelle
 
-VisionHub est recentré sur une version statique propre pour GitHub Pages.
+Lumen (anciennement Lumen) est recentré sur une version statique propre pour GitHub Pages.
 
 Le site doit fonctionner avec :
 
@@ -35,6 +50,7 @@ data/workspace.xml Données File OS
 data/finance.xml Données Finance
 README.md         Documentation statique
 SUIVI_PROJET.md   Suivi projet
+AGENTS.md         Règles permanentes de travail
 ```
 
 Fichiers de développement conservés :
@@ -197,6 +213,9 @@ Tests locaux :
 
 Corrections effectuées :
 
+- le panneau `playlists.html > Administration` contient maintenant une vue `Hiérarchie` explicite ;
+- cette vue affiche `Catégorie > Playlist > Vidéos` dans un arbre lisible ;
+- les boutons `Éditer` de l'arbre réutilisent les formulaires locaux existants ;
 - le panneau `playlists.html > Administration` est repositionné sous la navigation sticky pour ne plus être masqué par l'en-tête ;
 - le panneau d'administration a maintenant des marges, un arrondi et une hauteur limitée à l'espace visible ;
 - dans `files.html`, chaque dossier affiche les ressources par pages de 5 éléments ;
@@ -207,3 +226,81 @@ Tests :
 
 - `npm run check:js` : OK ;
 - `npm run test:e2e` : OK, 3 tests Playwright passent.
+
+## Administration bibliothèque vidéo — 10 juin 2026
+
+Objectif : améliorer uniquement l'administration statique de la bibliothèque vidéo, sans API YouTube, SQLite ou backend.
+
+Fonctions ajoutées :
+
+- zone `Vidéos déjà organisées` dans `playlists.html > Administration` ;
+- chaque vidéo organisée affiche sa catégorie, sa playlist, son titre, sa durée et ses tags ;
+- actions par vidéo organisée : `Déplacer`, `Modifier`, `Retirer` ;
+- déplacement d'une vidéo déjà classée vers une autre playlist ;
+- déplacement d'une vidéo importée vers une playlist existante ;
+- création d'une nouvelle playlist pendant le déplacement ;
+- création d'une nouvelle catégorie pendant le déplacement ;
+- prévention automatique des doublons par ID YouTube ;
+- message clair si la vidéo existe déjà dans la playlist cible : `Cette vidéo existe déjà dans la playlist X.`
+
+Règles conservées :
+
+- hiérarchie stricte `Catégorie > Playlist > Vidéos` ;
+- persistance en `localStorage` ;
+- export XML pour générer un nouveau `data/library.xml` ;
+- compatibilité GitHub Pages.
+
+Tests :
+
+- `npm run check:js` : OK ;
+- `npm run test:e2e` : OK, 3 tests Playwright passent ;
+- le test couvre le déplacement d'une vidéo déjà classée et l'affichage du message de doublon.
+
+## Bonnes pratiques projet — 10 juin 2026
+
+Ajout de `AGENTS.md` pour centraliser les règles permanentes du projet.
+
+Objectif :
+
+- éviter de répéter à chaque intervention que Lumen doit rester statique ;
+- garder les contraintes GitHub Pages visibles ;
+- documenter les fichiers essentiels et les fichiers de développement autorisés ;
+- rappeler les éléments à nettoyer après les tests ;
+- fixer les règles de gestion des vidéos, playlists, catégories, imports et exports XML ;
+- préciser les tests obligatoires avant de terminer une évolution fonctionnelle.
+
+Règle principale ajoutée :
+
+- choisir l'option la plus compatible GitHub Pages, la plus simple à maintenir, et qui conserve les données existantes.
+
+## Gestion playlists et catégories — 10 juin 2026
+
+Fonctions confirmées dans `playlists.html > Administration` :
+
+- créer une playlist ;
+- modifier le titre et la description d'une playlist ;
+- changer la catégorie d'une playlist ;
+- supprimer une playlist ;
+- déplacer une playlist dans une autre catégorie ;
+- réordonner les playlists ;
+- créer une catégorie ;
+- modifier le nom et la description d'une catégorie ;
+- supprimer une catégorie vide ;
+- fusionner deux catégories ;
+- réordonner les catégories.
+
+Correction ajoutée :
+
+- une catégorie qui contient encore des playlists ne peut plus être supprimée sans confirmation ;
+- si la confirmation est refusée, la catégorie et ses playlists restent intactes ;
+- si la confirmation est acceptée, la catégorie, ses playlists et leurs vidéos sont retirées du `localStorage`, puis l'export XML reflète le nouvel état.
+
+Test ajouté :
+
+- test Playwright dédié à la confirmation de suppression d'une catégorie contenant une playlist.
+
+Tests validés :
+
+- `npm run check:js` : OK ;
+- `npm run test:e2e` : OK, 4 tests Playwright passent ;
+- `node_modules/` et `test-results/` supprimés après les tests pour garder le projet propre.

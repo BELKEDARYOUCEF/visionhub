@@ -749,10 +749,15 @@ function organizedVideoRow(video) {
 
 function renderVideos() {
   const params = new URLSearchParams(location.search);
-  const playlist = getPlaylist(params.get("playlist") || state.active.playlistId) || firstPlaylist();
-  const video = getVideo(playlist, params.get("video") || state.active.videoId) || playlist.videos[0];
-  setActive(playlist?.id, video?.id, false);
-  return `<section class="video-page"><div class="page-head"><div><p class="kicker">Lecteur vidéo</p><h1>${escapeHtml(playlist.title)}</h1><p class="section-intro">Choisis une vidéo, lance la lecture et garde ta progression organisée par playlist.</p></div><select class="select-input" id="playlistSelect">${state.playlists.map((item) => `<option value="${item.id}" ${item.id === playlist.id ? "selected" : ""}>${escapeHtml(item.title)}</option>`).join("")}</select></div>
+  const playlistParam = params.get("playlist");
+  const videoParam = params.get("video");
+
+  if (playlistParam && videoParam) {
+    document.body.classList.remove("vd-mode");
+    const playlist = getPlaylist(playlistParam || state.active.playlistId) || firstPlaylist();
+    const video = getVideo(playlist, videoParam || state.active.videoId) || playlist.videos[0];
+    setActive(playlist?.id, video?.id, false);
+    return `<section class="video-page"><div class="page-head"><div><p class="kicker">Lecteur vidéo</p><h1>${escapeHtml(playlist.title)}</h1><p class="section-intro">Choisis une vidéo, lance la lecture et garde ta progression organisée par playlist.</p></div><select class="select-input" id="playlistSelect">${state.playlists.map((item) => `<option value="${item.id}" ${item.id === playlist.id ? "selected" : ""}>${escapeHtml(item.title)}</option>`).join("")}</select></div>
     <div class="player-layout">
       <article class="player-shell"><div class="player-frame" id="playerFrame">${renderPlayerPoster(video)}</div><div class="player-info" id="playerInfo">${videoInfo(video)}</div></article>
       <aside>
@@ -765,6 +770,145 @@ function renderVideos() {
         <div class="video-list" id="videoList">${playlist.videos.map((item) => videoRow(item, playlist.id, item.id === video.id)).join("")}</div><div id="videoEmpty"></div>
       </aside>
     </div>${renderImportedVideosSection("videos")}</section>`;
+  }
+
+  document.body.classList.add("vd-mode");
+  return renderVideoDashboard();
+}
+
+function renderVideoDashboard() {
+  const videos = allVideos();
+  const totalLib = videos.filter((v) => !v.imported).length;
+  const totalImp = videos.filter((v) => v.imported).length;
+  const playlists = regularPlaylists();
+  const plColors = ["pc1", "pc2", "pc3", "pc4", "pc5"];
+  const plIcons = ["ti-code", "ti-cpu", "ti-palette", "ti-trending-up", "ti-device-desktop", "ti-brain"];
+
+  function vdCard(video) {
+    const isLib = !video.imported;
+    const href = `videos.html?playlist=${encodeURIComponent(video.playlistId)}&video=${encodeURIComponent(video.id)}`;
+    const tags = (video.tags || []).slice(0, 2);
+    const searchData = `${video.title} ${categoryName(video.category)} ${video.playlistTitle} ${tags.join(" ")}`.toLowerCase();
+    return `<a class="vd-vcard" href="${href}" draggable="true"
+      data-vcard data-video-id="${escapeAttr(video.id)}"
+      data-youtube-id="${escapeAttr(video.youtubeId)}"
+      data-playlist-id="${escapeAttr(video.playlistId)}"
+      data-category="${escapeAttr(video.category)}"
+      data-source="${isLib ? "library" : "imported"}"
+      data-search="${escapeAttr(searchData)}">
+      <div class="vd-thumb">
+        <img src="${thumb(video.youtubeId)}" alt="" loading="lazy">
+        <div class="vd-play-orb"><i class="ti ti-player-play-filled"></i></div>
+        <span class="vd-thumb-src ${isLib ? "vd-src-lib" : "vd-src-imp"}">
+          <span class="vd-dot"></span>${isLib ? "Bibliothèque" : "Importée"}
+        </span>
+        ${video.duration ? `<span class="vd-thumb-dur">${escapeHtml(video.duration)}</span>` : ""}
+      </div>
+      <div class="vd-vbody">
+        <h3>${escapeHtml(video.title)}</h3>
+        <div class="vd-vmeta">
+          <span>${escapeHtml(categoryName(video.category))}</span>
+          <span>·</span>
+          <span>${escapeHtml(video.playlistTitle)}</span>
+        </div>
+        ${tags.length ? `<div class="vd-vtags">${tags.map((t) => `<span class="vd-tag">${escapeHtml(t)}</span>`).join("")}</div>` : ""}
+      </div>
+    </a>`;
+  }
+
+  function vdPlaylistItem(list, i) {
+    const cc = plColors[i % plColors.length];
+    const ic = plIcons[i % plIcons.length];
+    return `<div class="vd-pl" data-drop-playlist-id="${escapeAttr(list.id)}">
+      <div class="vd-pl-ic ${cc}"><i class="ti ${ic}"></i></div>
+      <div class="vd-pl-info">
+        <div class="vd-pl-name">${escapeHtml(list.title)}</div>
+        <div class="vd-pl-meta">${escapeHtml(categoryName(list.category))}</div>
+      </div>
+      <span class="vd-pl-count" data-pl-count="${escapeAttr(list.id)}">${list.videos.length}</span>
+    </div>`;
+  }
+
+  return `<div class="vd-app">
+  <aside class="vd-side">
+    <a class="vd-brand" href="index.html">
+      <span class="vd-brand-mark"><i class="ti ti-sparkles"></i></span>
+      <span>Lumen</span>
+    </a>
+    <div class="vd-nav-group">
+      <div class="vd-nav-label">Navigation</div>
+      <a class="vd-nav-item" href="index.html"><i class="ti ti-home"></i><span>Accueil</span></a>
+      <a class="vd-nav-item active" href="videos.html"><i class="ti ti-player-play"></i><span>Vidéos</span><span class="vd-nav-count">${videos.length}</span></a>
+      <a class="vd-nav-item" href="playlists.html"><i class="ti ti-stack-2"></i><span>Playlists</span><span class="vd-nav-count">${playlists.length}</span></a>
+      <a class="vd-nav-item" href="files.html"><i class="ti ti-folder"></i><span>Fichiers</span></a>
+      <a class="vd-nav-item" href="finance.html"><i class="ti ti-wallet"></i><span>Finance</span></a>
+      <a class="vd-nav-item" href="about.html"><i class="ti ti-info-circle"></i><span>À propos</span></a>
+    </div>
+    <div class="vd-nav-group">
+      <div class="vd-nav-label">Périmètre</div>
+      <div class="vd-nav-item" data-vd-filter="library" role="button">
+        <i class="ti ti-books"></i><span>Bibliothèque</span><span class="vd-nav-count">${totalLib}</span>
+      </div>
+      <div class="vd-nav-item" data-vd-filter="imported" role="button">
+        <i class="ti ti-download"></i><span>Importées</span><span class="vd-nav-count">${totalImp}</span>
+      </div>
+    </div>
+    <div class="vd-side-foot">
+      <div class="vd-avatar">YB</div>
+      <div class="vd-side-foot-info">
+        <div class="vd-name">Ma bibliothèque</div>
+        <div class="vd-mode">Local · GitHub Pages</div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="vd-main">
+    <div class="vd-topbar">
+      <div class="vd-topbar-title">
+        <i class="ti ti-player-play"></i>
+        <div>
+          <h1>Vidéos</h1>
+          <div class="vd-topbar-sub">${videos.length} vidéos · ${playlists.length} playlists · ${state.categories.length} catégories</div>
+        </div>
+      </div>
+      <div class="vd-search">
+        <i class="ti ti-search"></i>
+        <input id="vdSearch" type="search" placeholder="Rechercher une vidéo…" autocomplete="off">
+      </div>
+      <button class="vd-add-btn" id="openAdminPanel"><i class="ti ti-pencil"></i> Organiser</button>
+    </div>
+
+    <div class="vd-filters" id="vdFilters">
+      <button class="vd-chip active" data-filter="all"><i class="ti ti-apps"></i> Toutes <span class="vd-chip-count">${videos.length}</span></button>
+      <button class="vd-chip" data-filter="library"><i class="ti ti-books"></i> Bibliothèque</button>
+      <button class="vd-chip" data-filter="imported"><i class="ti ti-download"></i> Importées</button>
+      ${state.categories.map((cat) => `<button class="vd-chip" data-filter="cat:${escapeAttr(cat.id)}"><i class="ti ti-tag"></i> ${escapeHtml(cat.title)}</button>`).join("")}
+    </div>
+
+    <div class="vd-scroll">
+      <div class="vd-grid" id="vdGrid">${videos.map(vdCard).join("")}</div>
+      <div id="vdEmpty"></div>
+    </div>
+  </main>
+
+  <aside class="vd-right">
+    <div class="vd-right-head"><h2>Playlists</h2></div>
+    <div class="vd-hint"><i class="ti ti-drag-drop"></i> Glissez une vidéo pour la classer</div>
+    ${playlists.map((list, i) => vdPlaylistItem(list, i)).join("")}
+    <div class="vd-admin-box">
+      <div class="vd-admin-box-title"><i class="ti ti-adjustments"></i> Administration</div>
+      <p>Modifications locales uniquement. Exportez un nouveau <strong>library.xml</strong> pour le dépôt.</p>
+      <div class="vd-admin-btns">
+        <button class="vd-adm-btn primary" id="vdOpenAdmin2"><i class="ti ti-pencil"></i> Organiser la bibliothèque</button>
+        <button class="vd-adm-btn" id="vdExportXml"><i class="ti ti-file-export"></i> Exporter XML</button>
+        <button class="vd-adm-btn" id="vdCopyXml"><i class="ti ti-copy"></i> Copier XML</button>
+      </div>
+      <pre class="vd-export-box" id="vdXmlOutput" hidden></pre>
+    </div>
+  </aside>
+</div>
+<div class="vd-toast" id="vdToast"><i class="ti ti-check" id="vdToastIcon"></i> <span id="vdToastMsg"></span></div>
+${renderAdminDrawer()}`;
 }
 
 function renderImportedVideosSection(context) {
@@ -1282,6 +1426,12 @@ function filterPlaylists() {
 }
 
 function bindVideos() {
+  const params = new URLSearchParams(location.search);
+  if (params.get("playlist") && params.get("video")) bindVideoPlayer();
+  else bindVideoDashboard();
+}
+
+function bindVideoPlayer() {
   document.querySelector("#playlistSelect")?.addEventListener("change", (event) => {
     const list = getPlaylist(event.target.value);
     const first = list?.videos?.[0];
@@ -1319,6 +1469,137 @@ function bindVideos() {
 
   document.querySelector("#videoSearch")?.addEventListener("input", renderFilteredVideoList);
   bindImportedFilters();
+}
+
+function bindVideoDashboard() {
+  bindAdminPanel();
+
+  document.querySelector("#vdOpenAdmin2")?.addEventListener("click", () => {
+    const drawer = document.querySelector("#adminDrawer");
+    const overlay = document.querySelector("#adminOverlay");
+    if (drawer && overlay) { drawer.hidden = false; overlay.hidden = false; document.body.classList.add("admin-open"); }
+  });
+
+  document.querySelector("#vdSearch")?.addEventListener("input", filterVdGrid);
+
+  document.querySelector("#vdFilters")?.addEventListener("click", (e) => {
+    const chip = e.target.closest("[data-filter]");
+    if (!chip) return;
+    document.querySelectorAll(".vd-chip").forEach((c) => c.classList.remove("active"));
+    chip.classList.add("active");
+    filterVdGrid();
+  });
+
+  document.querySelectorAll("[data-vd-filter]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const filter = btn.dataset.vdFilter;
+      document.querySelectorAll(".vd-chip").forEach((c) => c.classList.remove("active"));
+      const target = document.querySelector(`.vd-chip[data-filter="${filter}"]`);
+      if (target) target.classList.add("active");
+      filterVdGrid();
+    });
+  });
+
+  let dragged = null;
+  document.querySelectorAll("[data-vcard]").forEach((card) => {
+    card.addEventListener("dragstart", (e) => {
+      dragged = card;
+      card.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+    });
+    card.addEventListener("dragend", () => { card.classList.remove("dragging"); dragged = null; });
+  });
+
+  document.querySelectorAll("[data-drop-playlist-id]").forEach((plEl) => {
+    plEl.addEventListener("dragover", (e) => { e.preventDefault(); plEl.classList.add("drop-over"); });
+    plEl.addEventListener("dragleave", () => plEl.classList.remove("drop-over"));
+    plEl.addEventListener("drop", (e) => {
+      e.preventDefault();
+      plEl.classList.remove("drop-over");
+      if (!dragged) return;
+      const targetPlaylistId = plEl.dataset.dropPlaylistId;
+      const srcPlaylist = getPlaylist(dragged.dataset.playlistId);
+      const video = getVideo(srcPlaylist, dragged.dataset.videoId);
+      if (!video) return;
+      const result = addVideoToPlaylist(video, targetPlaylistId);
+      if (result.added) {
+        const countEl = document.querySelector(`[data-pl-count="${CSS.escape(targetPlaylistId)}"]`);
+        if (countEl) countEl.textContent = String(parseInt(countEl.textContent || "0") + 1);
+      }
+      showVdToast(result.message, result.added ? "success" : "warn");
+    });
+  });
+
+  document.querySelector("#vdExportXml")?.addEventListener("click", () => {
+    const out = document.querySelector("#vdXmlOutput");
+    if (!out) return;
+    out.textContent = exportXml();
+    out.hidden = false;
+    showVdToast("XML généré — copiez le contenu ci-dessous", "success");
+  });
+
+  document.querySelector("#vdCopyXml")?.addEventListener("click", () => {
+    const xml = exportXml();
+    navigator.clipboard.writeText(xml)
+      .then(() => showVdToast("XML copié dans le presse-papiers !", "success"))
+      .catch(() => {
+        const out = document.querySelector("#vdXmlOutput");
+        if (out) { out.textContent = xml; out.hidden = false; }
+        showVdToast("Copiez depuis le panneau ci-dessous", "warn");
+      });
+  });
+}
+
+function filterVdGrid() {
+  const query = (document.querySelector("#vdSearch")?.value || "").toLowerCase();
+  const activeChip = document.querySelector(".vd-chip.active");
+  const filter = activeChip?.dataset.filter || "all";
+  let count = 0;
+  document.querySelectorAll("[data-vcard]").forEach((card) => {
+    const matchSearch = !query || card.dataset.search.includes(query);
+    const matchFilter = filter === "all"
+      || (filter === "library" && card.dataset.source === "library")
+      || (filter === "imported" && card.dataset.source === "imported")
+      || (filter.startsWith("cat:") && card.dataset.category === filter.slice(4));
+    const show = matchSearch && matchFilter;
+    card.hidden = !show;
+    if (show) count++;
+  });
+  const empty = document.querySelector("#vdEmpty");
+  if (empty) empty.innerHTML = count === 0 ? `<div class="empty-state" style="margin-top:40px"><strong>Aucune vidéo trouvée</strong><p>Modifiez votre recherche ou filtre.</p></div>` : "";
+}
+
+function showVdToast(msg, type = "success") {
+  const toast = document.querySelector("#vdToast");
+  const msgEl = document.querySelector("#vdToastMsg");
+  const icon = document.querySelector("#vdToastIcon");
+  if (!toast || !msgEl) return;
+  msgEl.textContent = msg;
+  if (icon) icon.className = `ti ${type === "success" ? "ti-check" : "ti-alert-triangle"}`;
+  toast.className = `vd-toast ${type}`;
+  void toast.offsetWidth;
+  toast.classList.add("show");
+  clearTimeout(toast._tt);
+  toast._tt = setTimeout(() => toast.classList.remove("show"), 2600);
+}
+
+function addVideoToPlaylist(video, targetPlaylistId) {
+  const target = getPlaylist(targetPlaylistId);
+  if (!target) return { added: false, message: "Playlist introuvable" };
+  if (target.videos.some((v) => v.youtubeId === video.youtubeId)) {
+    return { added: false, message: `Déjà dans « ${target.title} »` };
+  }
+  target.videos.push({
+    id: video.id || `v-${Date.now()}`,
+    youtubeId: video.youtubeId,
+    title: video.title,
+    description: video.description || "",
+    duration: video.duration || "",
+    level: video.level || target.level || "Débutant",
+    tags: Array.isArray(video.tags) ? video.tags : [],
+  });
+  saveLibraryOverride();
+  return { added: true, message: `Ajouté à « ${target.title} » ✓` };
 }
 
 function renderFilteredVideoList() {

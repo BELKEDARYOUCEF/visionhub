@@ -25,7 +25,7 @@
 | A1 | A | Renommage VisionHub → Lumen | `lumen/A1-rebrand` | ✅ Terminée, en attente merge |
 | A2 | A | Nouveau design system (CSS) | `lumen/A2-design-system` | ✅ Terminée, en attente merge |
 | A3 | A | Page d'accueil animée | `lumen/A3-home-animated` | ✅ Terminée, en attente merge |
-| A4 | A | Dashboard Vidéos + drag-drop | à créer | ⏳ À faire |
+| A4 | A | Dashboard Vidéos + drag-drop | `lumen/A3-home-animated` | ✅ Terminée, en attente merge |
 | A5 | A | Lecteur robuste + autres pages | à créer | ⏳ À faire |
 | B1 | B | Couche d'accès aux données | à créer | ⏳ À faire |
 | B2 | B | Modèle de données + schéma SQL | à créer | ⏳ À faire |
@@ -227,33 +227,79 @@ Après (A3) :
 
 ---
 
-## Prochaine tâche : A4 — Dashboard Vidéos
+## Tâche A4 — Dashboard Vidéos ✅
 
-**But :** Refondre `videos.html` (`renderVideos`) pour reproduire `lumen-dashboard.html`, branché sur les vraies données.
+**Branche :** `lumen/A3-home-animated`
+**Date :** 19 juin 2026
 
-**Ce qui va changer visuellement :**
-- Layout 3 colonnes : sidebar gauche + grille vidéos + barre playlists droite
-- Cartes vidéo avec vignette YouTube, badge source, orbe au survol
-- Glisser-déposer : vidéo → playlist → ajout + toast de confirmation
+### Ce qui a changé visuellement
+
+#### Layout — avant vs après
+
+**Avant (A2/A3) :**
+- Page vidéos = lecteur 2 colonnes (player + liste vidéos à droite)
+- Header/footer du site visible
+
+**Après (A4) :**
+- Header et footer masqués (`display: none`)
+- Layout 3 colonnes plein écran (`position: fixed; inset: 0`)
+- Sidebar gauche 248px : logo, nav complète avec compteurs, périmètre, avatar footer
+- Colonne centrale : topbar (titre + sous-titre + recherche + bouton Organiser) + chips de filtre + grille auto-fill de cartes vidéo
+- Barre droite 300px : liste de playlists droppables + boîte Administration
 
 ```
 Avant (A2) :
 ┌─────────────────────────────────────┐
-│ [filtre] [recherche]                │
-│ ┌────┐ ┌────┐ ┌────┐ ┌────┐        │
-│ │vid │ │vid │ │vid │ │vid │        │
-│ └────┘ └────┘ └────┘ └────┘        │
+│ [Header Lumen]                      │
+│ Lecteur vidéo | [playlist + vidéos] │
+│ [Footer]                            │
 └─────────────────────────────────────┘
 
 Après (A4) :
-┌──────┬──────────────────────┬────────┐
-│ Nav  │ [titre] [search] [+] │Playlist│
-│ side │ [filtres catégories] │ ──── │
-│ bar  │ ┌────┐ ┌────┐ ┌────┐│ ──── │
-│      │ │▶vid│ │▶vid│ │▶vid││ drag │
-│      │ └────┘ └────┘ └────┘│ drop │
-└──────┴──────────────────────┴────────┘
+┌──────┬────────────────────────┬──────────┐
+│Lumen │ Vidéos [search][Organ.]│ Playlists│
+│Accueil│ [Toutes][Biblio.][...] │ ──────  │
+│Vidéos │ ┌────┐ ┌────┐ ┌────┐  │ ──────  │
+│Playli.│ │▶vid│ │▶vid│ │▶vid│  │ Admin  │
+│...   │ └────┘ └────┘ └────┘  │[Export]│
+│YB    │                        │[Copier]│
+└──────┴────────────────────────┴──────────┘
 ```
+
+#### Cartes vidéo
+
+```
+┌──────────────────┐
+│ [vignette YT]    │  ← aspect-ratio 16/9, thumbnail YouTube
+│ •Bibliothèque    │  ← badge source (violet = biblio, amber = importée)
+│            1:00:42│  ← durée
+│  ▶ (au survol)  │  ← orbe violet, transition scale+opacity
+├──────────────────┤
+│ HTML Crash Course│  ← titre 2 lignes max (line-clamp)
+│ Dev Web · Playlist│  ← catégorie · playlist
+│ [HTML]           │  ← tags (2 max)
+└──────────────────┘
+```
+
+#### Fonctionnalités
+
+- **Recherche** : filtre en temps réel sur titre, catégorie, playlist, tags
+- **Chips de filtre** : Toutes / Bibliothèque / Importées / une chip par catégorie
+- **Sidebar périmètre** : clics sur "Bibliothèque" / "Importées" → active le chip correspondant
+- **Drag-and-drop** : glisser une carte vers une playlist → `addVideoToPlaylist()` avec anti-doublon par `youtubeId` → toast de confirmation
+- **Admin panel** : même tiroir admin que `playlists.html`, accessible via bouton "Organiser"
+- **Exporter XML** / **Copier XML** : génère `library.xml` depuis l'état courant
+- **Vue lecteur** : si URL a `?playlist=X&video=Y`, route vers l'ancienne vue player (inchangée — sera redessinée en A5)
+
+### Fichiers modifiés
+
+- `videos.html` — ajout Tabler Icons CDN
+- `app.js` — `renderVideos()` routeur + `renderVideoDashboard()` + `bindVideos()` → `bindVideoPlayer()` + `bindVideoDashboard()` + `filterVdGrid()` + `showVdToast()` + `addVideoToPlaylist()`
+- `styles.css` — bloc `.vd-*` (dashboard CSS, ~200 lignes)
+
+---
+
+## Prochaine tâche : A5 — Lecteur robuste + autres pages
 
 ---
 
@@ -264,7 +310,7 @@ Après (A4) :
 **A1 ✅** Renommage VisionHub → Lumen (logo, favicon, textes, localStorage)
 **A2 ✅** Nouveau design system CSS (palette violet/cyan, Sora+Inter, cartes, boutons)
 **A3 ✅** Page d'accueil animée (grille canvas interactive, halo souris, stats réelles)
-**A4 ⏳** Dashboard Vidéos (sidebar + grille cartes + barre playlists + drag-drop)
+**A4 ✅** Dashboard Vidéos (sidebar + grille cartes + barre playlists + drag-drop)
 **A5 ⏳** Lecteur robuste + toutes les autres pages au nouveau design
 
 ### Phase B — Préparation cloud (sans dépendance obligatoire)
@@ -285,4 +331,4 @@ Après (A4) :
 
 ---
 
-*Dernière mise à jour : 19 juin 2026 — après tâche A3*
+*Dernière mise à jour : 19 juin 2026 — après tâche A4*

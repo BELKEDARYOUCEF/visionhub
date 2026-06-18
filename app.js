@@ -494,30 +494,100 @@ function route() {
 }
 
 function renderHome() {
-  const videos = allVideos();
+  const totalVideos = allVideos().length;
+  const totalCats   = state.categories.length;
+
+  const features = [
+    { icon: 'ti-drag-drop',    title: 'Glisser-déposer',        desc: 'Attrapez une vidéo et déposez-la dans une playlist depuis la barre latérale. Le classement se fait en direct.', c: 1 },
+    { icon: 'ti-wand',         title: 'Classement intelligent',  desc: "Vos vidéos importées reçoivent une catégorie et une playlist suggérées d'après leur titre, leurs tags et leur source.", c: 2 },
+    { icon: 'ti-tags',         title: 'Hiérarchie claire',       desc: "Catégorie, puis playlist, puis vidéo. Une structure simple qui passe à l'échelle, de 11 à 1000 vidéos.", c: 3 },
+    { icon: 'ti-list-check',   title: 'Lecteur robuste',         desc: "Miniature d'abord, iframe au clic, et toujours un bouton « Ouvrir sur YouTube ». Fini l'erreur 153.", c: 4 },
+    { icon: 'ti-search',       title: 'Recherche & filtres',     desc: 'Cherchez dans les titres, tags, catégories et descriptions. Filtrez par périmètre, source ou playlist.', c: 5 },
+    { icon: 'ti-file-export',  title: 'Export XML',              desc: "Toutes vos modifications restent locales, puis s'exportent en XML propre. Vos données restent les vôtres.", c: 1 },
+  ];
+
+  const catColors = ['--accent-2', '--amber', '--rose', '--green', '--cyan', '--text-2'];
+  const catIcons  = ['ti-code', 'ti-cpu', 'ti-palette', 'ti-trending-up', 'ti-brain', 'ti-rocket'];
+
+  const modules = [
+    { icon: 'ti-player-play', label: 'Vidéos',    href: 'videos.html' },
+    { icon: 'ti-stack-2',     label: 'Playlists', href: 'playlists.html' },
+    { icon: 'ti-folder',      label: 'Fichiers',  href: 'files.html' },
+    { icon: 'ti-wallet',      label: 'Finance',   href: 'finance.html' },
+  ];
+
   return `
-    <section class="hero">
-      <div class="hero-copy">
-        <p class="kicker">Lumen</p>
-        <h1>Ton centre vivant pour vidéos, fichiers, apprentissage et business.</h1>
-        <p>Une bibliothèque claire pour organiser vidéos, fichiers, apprentissage et suivi business au même endroit.</p>
-        <div class="hero-actions">
-          <a class="btn primary" href="videos.html">Ouvrir le lecteur</a>
-          <a class="btn" href="playlists.html">Gérer les playlists</a>
-          <a class="btn ghost" href="files.html">Organiser les fichiers</a>
-        </div>
-      </div>
-      <div class="hero-board">
-        <article class="screen-card featured"><p class="eyebrow">Video intelligence</p><strong>${videos.length} vidéos prêtes</strong><p>${state.playlists.length} playlists structurées par catégorie.</p></article>
-        <div class="grid-2 mini-stack">${state.playlists.slice(0, 3).map((list) => `<a class="screen-card" href="videos.html?playlist=${list.id}"><span class="badge">${categoryName(list.category)}</span><strong>${escapeHtml(list.title)}</strong><p>${list.videos.length} vidéos</p></a>`).join("")}</div>
-      </div>
-    </section>
-    <section class="section"><h2>Applications intégrées</h2><div class="grid-4">
-      ${appCard("Bibliothèque vidéo", "Playlists, favoris, lecture 16:9 et tags.", "videos.html")}
-      ${appCard("File OS", "Dossiers, notes, ressources et structure type Drive/Notion.", "files.html")}
-      ${appCard("Finance cockpit", "Première base pour revenus, dépenses et budget.", "finance.html")}
-      ${appCard("Administration", "Gestion progressive de la bibliothèque.", "playlists.html")}
-    </div></section>`;
+<div class="home-hero" id="homeHero">
+  <canvas id="homeCanvas" aria-hidden="true"></canvas>
+  <div class="home-glow" id="homeGlow" aria-hidden="true"></div>
+  <div class="home-inner">
+    <p class="home-eyebrow"><span class="home-dot"></span> Votre bibliothèque personnelle de savoir</p>
+    <h1>Tout ce que vous regardez,<br><span class="home-grad">rangé et retrouvable.</span></h1>
+    <p class="home-sub">Organisez vos vidéos YouTube, vos playlists, vos ressources importées, vos fichiers et vos notes. Catégories, playlists et classement intelligent — une base claire qui vit sur GitHub Pages, sans serveur.</p>
+    <div class="home-actions">
+      <a class="home-btn-primary" href="videos.html"><i class="ti ti-sparkles"></i> Ouvrir ma bibliothèque</a>
+      <a class="home-btn-ghost" href="videos.html"><i class="ti ti-player-play"></i> Voir la démo</a>
+    </div>
+    <div class="home-stats">
+      <div class="home-stat"><span class="home-stat-n">${totalVideos || '—'}</span><span class="home-stat-l">Vidéos rangées</span></div>
+      <div class="home-stat"><span class="home-stat-n">${totalCats || '—'}</span><span class="home-stat-l">Catégories</span></div>
+      <div class="home-stat"><span class="home-stat-n">∞</span><span class="home-stat-l">Playlists</span></div>
+      <div class="home-stat"><span class="home-stat-n">XML</span><span class="home-stat-l">Vos données</span></div>
+    </div>
+  </div>
+  <div class="home-scroll-hint" aria-hidden="true"><i class="ti ti-chevron-down"></i></div>
+</div>
+
+<section class="home-section" id="home-features">
+  <div class="home-wrap">
+    <div class="home-section-head reveal">
+      <p class="home-label">Conçu pour le flux</p>
+      <h2>Une organisation qui suit votre rythme</h2>
+      <p>Chaque vidéo trouve sa place. Glissez, classez, retrouvez — sans friction.</p>
+    </div>
+    <div class="home-fgrid">
+      ${features.map(f => `
+      <div class="home-fcard c${f.c} reveal" data-spotlight>
+        <div class="home-fcard-ic"><i class="ti ${f.icon}"></i></div>
+        <h3>${f.title}</h3>
+        <p>${f.desc}</p>
+      </div>`).join('')}
+    </div>
+  </div>
+</section>
+
+<section class="home-section home-section-alt" id="home-categories">
+  <div class="home-wrap">
+    <div class="home-section-head reveal">
+      <p class="home-label">Vos catégories</p>
+      <h2>Un savoir bien rangé</h2>
+      <p>Vos vidéos se classent dans des catégories claires, chacune avec sa couleur.</p>
+    </div>
+    <div class="home-catrow">
+      ${state.categories.length > 0
+        ? state.categories.map((cat, i) => `
+          <div class="home-catcard reveal" style="--cc:var(${catColors[i % catColors.length]})">
+            <span class="home-catbadge"><i class="ti ${catIcons[i % catIcons.length]}"></i> ${escapeHtml(cat.id.toUpperCase().slice(0, 4))}</span>
+            <h4>${escapeHtml(cat.title)}</h4>
+            <p>${escapeHtml(cat.description || 'Contenu classé par catégorie.')}</p>
+          </div>`).join('')
+        : '<p style="color:var(--text-2);text-align:center">Chargez la bibliothèque pour voir vos catégories.</p>'}
+    </div>
+  </div>
+</section>
+
+<section class="home-section" id="home-modules">
+  <div class="home-wrap">
+    <div class="home-section-head reveal">
+      <p class="home-label">Les modules</p>
+      <h2>Tout votre univers, par espace</h2>
+      <p>Chaque type de contenu a sa page, le même moteur d'organisation partout.</p>
+    </div>
+    <div class="home-modrow">
+      ${modules.map(m => `<a class="home-modpill reveal" href="${m.href}"><i class="ti ${m.icon}"></i> ${m.label}</a>`).join('')}
+    </div>
+  </div>
+</section>`;
 }
 
 function appCard(title, text, href) {
@@ -813,10 +883,96 @@ function renderAbout() {
 
 function bindPage() {
   bindFavorites();
+  if (page === "home")      bindHome();
   if (page === "playlists") bindPlaylistFilters();
-  if (page === "videos") bindVideos();
-  if (page === "files") bindFiles();
-  if (page === "finance") bindFinance();
+  if (page === "videos")    bindVideos();
+  if (page === "files")     bindFiles();
+  if (page === "finance")   bindFinance();
+}
+
+function bindHome() {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const revealIO = new IntersectionObserver((entries) => {
+    entries.forEach((entry, i) => {
+      if (entry.isIntersecting) {
+        setTimeout(() => entry.target.classList.add('in'), i * 60);
+        revealIO.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(el => revealIO.observe(el));
+
+  document.querySelectorAll('[data-spotlight]').forEach(card => {
+    card.addEventListener('mousemove', e => {
+      const r = card.getBoundingClientRect();
+      card.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+      card.style.setProperty('--my', (e.clientY - r.top) + 'px');
+    });
+  });
+
+  if (reduced) {
+    document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
+    return;
+  }
+
+  const hero = document.getElementById('homeHero');
+  const glow = document.getElementById('homeGlow');
+  const cv   = document.getElementById('homeCanvas');
+  if (!hero || !glow || !cv) return;
+
+  let gx = window.innerWidth / 2, gy = window.innerHeight * 0.4, tx = gx, ty = gy;
+  hero.addEventListener('mousemove', e => { tx = e.clientX; ty = e.clientY; });
+  (function animGlow() {
+    gx += (tx - gx) * 0.08;
+    gy += (ty - gy) * 0.08;
+    glow.style.left = gx + 'px';
+    glow.style.top  = gy + 'px';
+    requestAnimationFrame(animGlow);
+  })();
+
+  const ctx2d = cv.getContext('2d');
+  let W, H, dots = [], mx = -999, my = -999;
+  function resizeCanvas() {
+    W = cv.width  = hero.offsetWidth;
+    H = cv.height = hero.offsetHeight;
+    const gap = 46;
+    dots = [];
+    for (let x = gap / 2; x < W; x += gap)
+      for (let y = gap / 2; y < H; y += gap)
+        dots.push({ bx: x, by: y });
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+  hero.addEventListener('mousemove', e => {
+    const r = cv.getBoundingClientRect();
+    mx = e.clientX - r.left;
+    my = e.clientY - r.top;
+  });
+  hero.addEventListener('mouseleave', () => { mx = -999; my = -999; });
+  (function draw() {
+    ctx2d.clearRect(0, 0, W, H);
+    for (const d of dots) {
+      const dx = d.bx - mx, dy = d.by - my, dist = Math.hypot(dx, dy);
+      const R = 150;
+      let px = d.bx, py = d.by, size = 1.3, a = 0.18;
+      if (dist < R) {
+        const f = 1 - dist / R;
+        const ang = Math.atan2(dy, dx);
+        px = d.bx + Math.cos(ang) * f * 14;
+        py = d.by + Math.sin(ang) * f * 14;
+        size = 1.3 + f * 2.4;
+        a = 0.18 + f * 0.7;
+        ctx2d.fillStyle = `rgba(${110 + (f * 60 | 0)},${86 + (f * 90 | 0)},247,${a.toFixed(2)})`;
+      } else {
+        ctx2d.fillStyle = `rgba(150,155,180,${a})`;
+      }
+      ctx2d.beginPath();
+      ctx2d.arc(px, py, size, 0, 6.283);
+      ctx2d.fill();
+    }
+    requestAnimationFrame(draw);
+  })();
 }
 
 function bindHeader() {

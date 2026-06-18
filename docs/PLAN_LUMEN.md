@@ -26,7 +26,7 @@
 | A2 | A | Nouveau design system (CSS) | `lumen/A2-design-system` | ✅ Terminée, en attente merge |
 | A3 | A | Page d'accueil animée | `lumen/A3-home-animated` | ✅ Terminée, en attente merge |
 | A4 | A | Dashboard Vidéos + drag-drop | `lumen/A3-home-animated` | ✅ Terminée, en attente merge |
-| A5 | A | Lecteur robuste + autres pages | à créer | ⏳ À faire |
+| A5 | A | Lecteur robuste + autres pages | `lumen/A3-home-animated` | ✅ Terminée, en attente merge |
 | B1 | B | Couche d'accès aux données | à créer | ⏳ À faire |
 | B2 | B | Modèle de données + schéma SQL | à créer | ⏳ À faire |
 | C1 | C | Connexion Supabase | à créer | ⏳ À faire |
@@ -299,7 +299,52 @@ Après (A4) :
 
 ---
 
-## Prochaine tâche : A5 — Lecteur robuste + autres pages
+## Tâche A5 — Lecteur robuste + autres pages ✅
+
+**Branche :** `lumen/A3-home-animated`
+**Date :** 19 juin 2026
+
+### Ce qui a changé
+
+#### Lecteur vidéo (`videos.html?playlist=X&video=Y`)
+
+- Lien **← Tableau de bord** en haut à gauche du player (retour vers le dashboard)
+- Bouton **Ouvrir sur YouTube ↗** toujours visible sur le poster (pas seulement en `file://`)
+- Anti-erreur 153 déjà en place : poster → iframe seulement après clic utilisateur
+
+```
+Avant (A4) :
+[pas de navigation visible — header caché par le CSS dashboard]
+[poster vidéo]  [Cliquer pour charger]
+
+Après (A5) :
+← Tableau de bord            ← lien retour
+LECTEUR VIDÉO
+Playlist démo
+[poster vidéo]  [Cliquer pour charger]
+                [Ouvrir sur YouTube ↗]  ← toujours visible
+```
+
+#### Page À propos
+
+- Roadmap mise à jour : Phase A / B / C (plus Phase 1/2/3 VisionHub)
+- 6 cartes : 3 phases (A Design ✅, B Données, C Cloud) + 3 infos (Stack, Sources de données, Règles d'or)
+- Liens `data/*.xml` stylisés en `code` violet
+
+### Fichiers modifiés
+
+- `app.js` — `renderPlayerPoster()` : bouton YT toujours visible ; player branch : lien retour ; `renderAbout()` : roadmap A/B/C + 3 cartes info
+- `styles.css` — `.player-back-link`, `.player-yt-link`, `.about-list`
+
+---
+
+## Fin Phase A ✅
+
+Toutes les tâches A1 → A5 sont terminées. Le site est entièrement re-designé Lumen, 100 % statique et fonctionnel hors-ligne. Prêt pour la Phase B.
+
+---
+
+## Prochaine tâche : B1 — Couche d'accès aux données
 
 ---
 
@@ -311,7 +356,7 @@ Après (A4) :
 **A2 ✅** Nouveau design system CSS (palette violet/cyan, Sora+Inter, cartes, boutons)
 **A3 ✅** Page d'accueil animée (grille canvas interactive, halo souris, stats réelles)
 **A4 ✅** Dashboard Vidéos (sidebar + grille cartes + barre playlists + drag-drop)
-**A5 ⏳** Lecteur robuste + toutes les autres pages au nouveau design
+**A5 ✅** Lecteur robuste + toutes les autres pages au nouveau design
 
 ### Phase B — Préparation cloud (sans dépendance obligatoire)
 
@@ -331,4 +376,4 @@ Après (A4) :
 
 ---
 
-*Dernière mise à jour : 19 juin 2026 — après tâche A4*
+*Dernière mise à jour : 19 juin 2026 — après tâche A5 (fin Phase A)*

@@ -757,7 +757,7 @@ function renderVideos() {
     const playlist = getPlaylist(playlistParam || state.active.playlistId) || firstPlaylist();
     const video = getVideo(playlist, videoParam || state.active.videoId) || playlist.videos[0];
     setActive(playlist?.id, video?.id, false);
-    return `<section class="video-page"><div class="page-head"><div><p class="kicker">Lecteur vidéo</p><h1>${escapeHtml(playlist.title)}</h1><p class="section-intro">Choisis une vidéo, lance la lecture et garde ta progression organisée par playlist.</p></div><select class="select-input" id="playlistSelect">${state.playlists.map((item) => `<option value="${item.id}" ${item.id === playlist.id ? "selected" : ""}>${escapeHtml(item.title)}</option>`).join("")}</select></div>
+    return `<section class="video-page"><a href="videos.html" class="player-back-link">Tableau de bord</a><div class="page-head"><div><p class="kicker">Lecteur vidéo</p><h1>${escapeHtml(playlist.title)}</h1><p class="section-intro">Choisis une vidéo, lance la lecture et garde ta progression organisée par playlist.</p></div><select class="select-input" id="playlistSelect">${state.playlists.map((item) => `<option value="${item.id}" ${item.id === playlist.id ? "selected" : ""}>${escapeHtml(item.title)}</option>`).join("")}</select></div>
     <div class="player-layout">
       <article class="player-shell"><div class="player-frame" id="playerFrame">${renderPlayerPoster(video)}</div><div class="player-info" id="playerInfo">${videoInfo(video)}</div></article>
       <aside>
@@ -947,7 +947,7 @@ function importedVideoCard(video) {
 
 function renderPlayerPoster(video) {
   if (!video?.youtubeId) return `<div class="empty-state"><strong>ID YouTube invalide</strong><p>Ajoute une URL YouTube publique depuis l'administration.</p></div>`;
-  return `<div class="player-poster" style="background-image:url('${thumb(video.youtubeId, "maxresdefault")}')"><div class="play-stack"><button class="play-orb" data-load-youtube="${video.id}" aria-label="Lire ${escapeAttr(video.title)}">▶</button><strong>${escapeHtml(video.title)}</strong><small>Cliquer pour charger le lecteur YouTube</small></div></div>`;
+  return `<div class="player-poster" style="background-image:url('${thumb(video.youtubeId, "maxresdefault")}')"><div class="play-stack"><button class="play-orb" data-load-youtube="${video.id}" aria-label="Lire ${escapeAttr(video.title)}">▶</button><strong>${escapeHtml(video.title)}</strong><small>Cliquer pour charger le lecteur YouTube</small><a class="btn ghost player-yt-link" href="${youtubeWatchUrl(video)}" target="_blank" rel="noreferrer">Ouvrir sur YouTube ↗</a></div></div>`;
 }
 
 function loadYoutubeIntoFrame(video) {
@@ -1022,7 +1022,38 @@ function goalCard(goal) {
 }
 
 function renderAbout() {
-  return `<section><div class="page-head"><div><p class="kicker">Architecture Lumen</p><h1>Une bibliothèque personnelle modulaire et évolutive.</h1><p class="section-intro">La base statique : pages séparées, XML, localStorage, design premium. La suite ajoute la synchronisation cloud via Supabase, toujours optionnelle.</p></div></div><div class="grid-3">${appCard("Phase 1", "Stabiliser vidéo + XML + GitHub Pages.", "videos.html")}${appCard("Phase 2", "File OS, ressources, notes et tags avancés.", "files.html")}${appCard("Phase 3", "Finance, CRM, projets et futur backend.", "finance.html")}</div></section>`;
+  const techStack = [
+    "HTML + CSS + JavaScript vanilla",
+    "Données XML + localStorage",
+    "GitHub Pages (statique, sans serveur)",
+    "Supabase (cloud optionnel — Phase C)",
+    "Playwright (tests E2E)",
+  ];
+  const dataSources = [
+    ["data/library.xml", "vidéos & playlists"],
+    ["data/resources.xml", "vidéos importées"],
+    ["data/workspace.xml", "fichiers & notes"],
+    ["data/finance.xml", "transactions"],
+    ["localStorage", "modifications locales"],
+  ];
+  const rules = [
+    "Toujours fonctionnel hors-ligne",
+    "Aucune suppression de données XML",
+    "youtubeId comme clé unique anti-doublon",
+    "Aucune clé secrète côté client",
+    "Cloud = surcouche, jamais obligatoire",
+  ];
+  return `<section><div class="page-head"><div><p class="kicker">Architecture Lumen</p><h1>Bibliothèque personnelle, modulaire et évolutive.</h1><p class="section-intro">Local-first, statique, GitHub Pages. Le cloud est une surcouche optionnelle — jamais une dépendance pour afficher la bibliothèque.</p></div></div>
+  <div class="grid-3">
+    ${appCard("Phase A — Design ✅", "Nouveau design Lumen (violet/cyan, Sora+Inter), page d'accueil animée, dashboard vidéos 3 colonnes, lecteur robuste.", "videos.html")}
+    ${appCard("Phase B — Données", "Couche d'accès unifiée store.js, modèle de données cible, schéma SQL Supabase — préparation cloud sans dépendance obligatoire.", "playlists.html")}
+    ${appCard("Phase C — Cloud", "Comptes Supabase, authentification email, Row Level Security par utilisateur, migration locale → cloud, synchronisation offline-safe.", "about.html")}
+  </div>
+  <div class="grid-3" style="margin-top:28px">
+    <article class="content-card"><div class="card-meta"><span class="badge">Tech</span></div><h3>Stack technique</h3><ul class="about-list">${techStack.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></article>
+    <article class="content-card"><div class="card-meta"><span class="badge">Données</span></div><h3>Sources de données</h3><ul class="about-list">${dataSources.map(([file, desc]) => `<li><code>${escapeHtml(file)}</code> — ${escapeHtml(desc)}</li>`).join("")}</ul></article>
+    <article class="content-card"><div class="card-meta"><span class="badge">Invariants</span></div><h3>Règles d'or</h3><ul class="about-list">${rules.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul></article>
+  </div></section>`;
 }
 
 function bindPage() {

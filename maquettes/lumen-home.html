@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lumen — Votre bibliothèque, éclairée</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/tabler-icons.min.css">
+<style>
+:root{
+  --bg:#0A0B0F;
+  --bg-soft:#101218;
+  --surface:#15171F;
+  --surface-2:#1B1E28;
+  --line:rgba(255,255,255,0.07);
+  --line-2:rgba(255,255,255,0.12);
+  --text:#F4F5F7;
+  --text-2:#9CA0AD;
+  --text-3:#5F6373;
+  --accent:#6E56F7;
+  --accent-2:#9D8BFF;
+  --cyan:#3FD8C7;
+  --amber:#F5A524;
+  --rose:#F76E7E;
+  --green:#54D188;
+  --r:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'Inter',sans-serif;
+  line-height:1.6;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:rgba(110,86,247,0.35)}
+h1,h2,h3,.display{font-family:'Sora',sans-serif;letter-spacing:-0.02em}
+.mono{font-family:'JetBrains Mono',monospace}
+
+/* ---------- NAV ---------- */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 40px;
+  background:rgba(10,11,15,0.6);
+  backdrop-filter:blur(18px);
+  border-bottom:1px solid transparent;
+  transition:border-color .3s, background .3s;
+}
+nav.scrolled{border-bottom-color:var(--line);background:rgba(10,11,15,0.85)}
+.brand{display:flex;align-items:center;gap:11px;font-family:'Sora';font-weight:600;font-size:18px}
+.brand-mark{
+  width:32px;height:32px;border-radius:9px;
+  background:linear-gradient(135deg,var(--accent),var(--cyan));
+  display:flex;align-items:center;justify-content:center;
+  font-size:17px;color:#fff;
+}
+.nav-links{display:flex;gap:34px;align-items:center}
+.nav-links a{color:var(--text-2);text-decoration:none;font-size:14.5px;font-weight:500;transition:color .2s}
+.nav-links a:hover{color:var(--text)}
+.nav-cta{
+  background:var(--text);color:var(--bg);
+  padding:9px 18px;border-radius:9px;font-weight:600;font-size:14px;
+  text-decoration:none;transition:transform .2s, box-shadow .2s;
+}
+.nav-cta:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(255,255,255,0.12)}
+@media(max-width:820px){.nav-links{display:none}nav{padding:16px 22px}}
+
+/* ---------- HERO ---------- */
+.hero{
+  position:relative;min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:120px 24px 80px;
+  overflow:hidden;
+}
+#grid-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0}
+.hero-glow{
+  position:absolute;width:680px;height:680px;border-radius:50%;
+  background:radial-gradient(circle,rgba(110,86,247,0.16),transparent 62%);
+  pointer-events:none;z-index:1;
+  transform:translate(-50%,-50%);
+  transition:opacity .4s;
+}
+.hero-inner{position:relative;z-index:3;max-width:880px}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:7px 15px;margin-bottom:30px;
+  border:1px solid var(--line-2);border-radius:100px;
+  background:rgba(255,255,255,0.03);
+  font-size:13px;color:var(--text-2);font-weight:500;
+  backdrop-filter:blur(8px);
+}
+.eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
+.hero h1{
+  font-size:clamp(40px,7vw,76px);font-weight:600;line-height:1.04;
+  margin-bottom:26px;
+}
+.hero h1 .grad{
+  background:linear-gradient(120deg,var(--accent-2),var(--cyan));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.hero p.sub{
+  font-size:clamp(16px,2vw,19px);color:var(--text-2);
+  max-width:580px;margin:0 auto 40px;line-height:1.65;
+}
+.hero-actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.btn-primary{
+  display:inline-flex;align-items:center;gap:9px;
+  background:linear-gradient(135deg,var(--accent),#5a45d8);
+  color:#fff;padding:14px 26px;border-radius:11px;
+  font-weight:600;font-size:15.5px;text-decoration:none;
+  border:1px solid rgba(255,255,255,0.12);
+  box-shadow:0 10px 30px rgba(110,86,247,0.35);
+  transition:transform .2s, box-shadow .2s;
+}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 16px 40px rgba(110,86,247,0.5)}
+.btn-ghost{
+  display:inline-flex;align-items:center;gap:9px;
+  background:rgba(255,255,255,0.04);color:var(--text);
+  padding:14px 24px;border-radius:11px;font-weight:600;font-size:15.5px;
+  text-decoration:none;border:1px solid var(--line-2);
+  transition:background .2s, border-color .2s;
+}
+.btn-ghost:hover{background:rgba(255,255,255,0.08);border-color:var(--line-2)}
+.hero-stats{
+  display:flex;gap:48px;justify-content:center;margin-top:64px;flex-wrap:wrap;
+}
+.hero-stats .stat .n{font-family:'Sora';font-size:30px;font-weight:600}
+.hero-stats .stat .l{font-size:13px;color:var(--text-3);margin-top:3px;letter-spacing:0.02em}
+.scroll-hint{
+  position:absolute;bottom:30px;left:50%;transform:translateX(-50%);z-index:3;
+  color:var(--text-3);font-size:22px;animation:bob 2s ease-in-out infinite;
+}
+@keyframes bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(8px)}}
+
+/* ---------- SECTIONS ---------- */
+section{position:relative;z-index:2}
+.wrap{max-width:1140px;margin:0 auto;padding:0 40px}
+@media(max-width:820px){.wrap{padding:0 22px}}
+.section-head{text-align:center;max-width:640px;margin:0 auto 60px}
+.section-label{
+  font-size:13px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;
+  color:var(--accent-2);margin-bottom:14px;
+}
+.section-head h2{font-size:clamp(30px,4.5vw,44px);font-weight:600;line-height:1.1;margin-bottom:18px}
+.section-head p{color:var(--text-2);font-size:17px}
+.features{padding:120px 0}
+
+/* platform pills */
+.platforms{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:90px}
+.pf{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 20px;border-radius:12px;
+  background:var(--surface);border:1px solid var(--line);
+  font-weight:500;font-size:14.5px;color:var(--text-2);
+  transition:transform .25s, border-color .25s, color .25s;
+}
+.pf:hover{transform:translateY(-3px);border-color:var(--line-2);color:var(--text)}
+.pf i{font-size:20px}
+.pf.yt i{color:#9D8BFF}.pf.tt i{color:#3FD8C7}.pf.ig i{color:#F5A524}.pf.fb i{color:#54D188}
+
+/* feature grid */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+@media(max-width:900px){.grid{grid-template-columns:1fr 1fr}}
+@media(max-width:620px){.grid{grid-template-columns:1fr}}
+.card{
+  position:relative;
+  background:linear-gradient(180deg,var(--surface),var(--bg-soft));
+  border:1px solid var(--line);border-radius:18px;
+  padding:30px 26px;overflow:hidden;
+  transition:transform .3s, border-color .3s;
+}
+.card::before{
+  content:"";position:absolute;inset:0;border-radius:18px;
+  background:radial-gradient(420px circle at var(--mx,50%) var(--my,50%),rgba(110,86,247,0.10),transparent 40%);
+  opacity:0;transition:opacity .3s;pointer-events:none;
+}
+.card:hover{transform:translateY(-4px);border-color:var(--line-2)}
+.card:hover::before{opacity:1}
+.card .ic{
+  width:48px;height:48px;border-radius:13px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:23px;margin-bottom:20px;
+  background:rgba(110,86,247,0.12);color:var(--accent-2);
+  border:1px solid rgba(110,86,247,0.2);
+}
+.card.c2 .ic{background:rgba(63,216,199,0.12);color:var(--cyan);border-color:rgba(63,216,199,0.2)}
+.card.c3 .ic{background:rgba(245,165,36,0.12);color:var(--amber);border-color:rgba(245,165,36,0.2)}
+.card.c4 .ic{background:rgba(247,110,126,0.12);color:var(--rose);border-color:rgba(247,110,126,0.2)}
+.card.c5 .ic{background:rgba(84,209,136,0.12);color:var(--green);border-color:rgba(84,209,136,0.2)}
+.card h3{font-size:19px;font-weight:600;margin-bottom:10px}
+.card p{color:var(--text-2);font-size:14.5px;line-height:1.6}
+
+/* status showcase */
+.status-section{padding:110px 0;background:var(--bg-soft);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.status-row{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin-top:10px}
+.st{
+  flex:1;min-width:200px;max-width:250px;
+  background:var(--surface);border:1px solid var(--line);border-radius:16px;
+  padding:24px;border-top:3px solid;
+}
+.st.s1{border-top-color:var(--accent-2)}
+.st.s2{border-top-color:var(--amber)}
+.st.s3{border-top-color:var(--rose)}
+.st.s4{border-top-color:var(--green)}
+.st .badge{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;padding:5px 11px;border-radius:7px;margin-bottom:14px}
+.st.s1 .badge{background:rgba(157,139,255,0.14);color:var(--accent-2)}
+.st.s2 .badge{background:rgba(245,165,36,0.14);color:var(--amber)}
+.st.s3 .badge{background:rgba(247,110,126,0.14);color:var(--rose)}
+.st.s4 .badge{background:rgba(84,209,136,0.14);color:var(--green)}
+.st h4{font-size:16px;font-weight:600;margin-bottom:6px;font-family:'Sora'}
+.st p{font-size:13.5px;color:var(--text-2)}
+
+/* CTA */
+.cta-section{padding:130px 0;text-align:center;position:relative;overflow:hidden}
+.cta-box{
+  position:relative;max-width:820px;margin:0 auto;
+  background:linear-gradient(135deg,var(--surface),var(--bg-soft));
+  border:1px solid var(--line-2);border-radius:26px;
+  padding:64px 40px;overflow:hidden;
+}
+.cta-box::after{
+  content:"";position:absolute;top:-120px;left:50%;transform:translateX(-50%);
+  width:500px;height:300px;
+  background:radial-gradient(circle,rgba(110,86,247,0.22),transparent 65%);
+  pointer-events:none;
+}
+.cta-box h2{font-size:clamp(28px,4.5vw,42px);font-weight:600;margin-bottom:18px;position:relative}
+.cta-box p{color:var(--text-2);font-size:17px;margin-bottom:34px;position:relative}
+
+footer{border-top:1px solid var(--line);padding:40px;text-align:center;color:var(--text-3);font-size:13.5px}
+
+.reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.3,1),transform .7s cubic-bezier(.2,.7,.3,1)}
+.reveal.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}.scroll-hint{animation:none}}
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="brand"><span class="brand-mark"><i class="ti ti-sparkles"></i></span>Lumen</div>
+  <div class="nav-links">
+    <a href="#features">Fonctions</a>
+    <a href="#status">Catégories</a>
+    <a href="#platforms">Modules</a>
+    <a href="#cta">Démarrer</a>
+  </div>
+  <a href="lumen-dashboard.html" class="nav-cta">Ouvrir</a>
+</nav>
+
+<header class="hero">
+  <canvas id="grid-canvas"></canvas>
+  <div class="hero-glow" id="glow"></div>
+  <div class="hero-inner">
+    <div class="eyebrow"><span class="dot"></span> Votre bibliothèque personnelle de savoir</div>
+    <h1>Tout ce que vous regardez,<br><span class="grad">rangé et retrouvable.</span></h1>
+    <p class="sub">Organisez vos vidéos YouTube, vos playlists, vos ressources importées, vos fichiers et vos notes. Catégories, playlists et classement intelligent — une base claire qui vit sur GitHub Pages, sans serveur.</p>
+    <div class="hero-actions">
+      <a href="lumen-dashboard.html" class="btn-primary"><i class="ti ti-sparkles"></i> Ouvrir ma bibliothèque</a>
+      <a href="lumen-dashboard.html" class="btn-ghost"><i class="ti ti-player-play"></i> Voir la démo</a>
+    </div>
+    <div class="hero-stats">
+      <div class="stat"><div class="n">185</div><div class="l">Vidéos rangées</div></div>
+      <div class="stat"><div class="n">6</div><div class="l">Catégories</div></div>
+      <div class="stat"><div class="n">∞</div><div class="l">Playlists</div></div>
+      <div class="stat"><div class="n">XML</div><div class="l">Vos données</div></div>
+    </div>
+  </div>
+  <div class="scroll-hint"><i class="ti ti-chevron-down"></i></div>
+</header>
+
+<section class="features" id="features">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="section-label">Conçu pour le flux</div>
+      <h2>Une organisation qui suit votre rythme</h2>
+      <p>Chaque vidéo trouve sa place. Glissez, classez, retrouvez — sans friction.</p>
+    </div>
+    <div class="grid">
+      <div class="card c1 reveal"><div class="ic"><i class="ti ti-drag-drop"></i></div><h3>Glisser-déposer</h3><p>Attrapez une vidéo et déposez-la dans une playlist depuis la barre latérale. Le classement se fait en direct.</p></div>
+      <div class="card c2 reveal"><div class="ic"><i class="ti ti-wand"></i></div><h3>Classement intelligent</h3><p>Vos vidéos importées reçoivent une catégorie et une playlist suggérées d'après leur titre, leurs tags et leur source.</p></div>
+      <div class="card c3 reveal"><div class="ic"><i class="ti ti-tags"></i></div><h3>Hiérarchie claire</h3><p>Catégorie, puis playlist, puis vidéo. Une structure simple qui passe à l'échelle, de 11 à 1000 vidéos.</p></div>
+      <div class="card c4 reveal"><div class="ic"><i class="ti ti-list-check"></i></div><h3>Lecteur robuste</h3><p>Miniature d'abord, iframe au clic, et toujours un bouton « Ouvrir sur YouTube ». Fini l'erreur 153.</p></div>
+      <div class="card c5 reveal"><div class="ic"><i class="ti ti-search"></i></div><h3>Recherche & filtres</h3><p>Cherchez dans les titres, tags, catégories et descriptions. Filtrez par périmètre, source ou playlist.</p></div>
+      <div class="card c1 reveal"><div class="ic"><i class="ti ti-file-export"></i></div><h3>Export XML</h3><p>Toutes vos modifications restent locales, puis s'exportent en XML propre. Vos données restent les vôtres.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="status-section" id="status">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="section-label">Vos catégories</div>
+      <h2>Un savoir bien rangé</h2>
+      <p>Vos vidéos se classent dans des catégories claires, chacune avec sa couleur.</p>
+    </div>
+    <div class="status-row">
+      <div class="st s1 reveal"><span class="badge"><i class="ti ti-code"></i> Dév Web</span><h4>Développement Web</h4><p>JavaScript, CSS, front-end et projets web.</p></div>
+      <div class="st s2 reveal"><span class="badge"><i class="ti ti-cpu"></i> IA</span><h4>Intelligence Artificielle</h4><p>Prompts, agents, automatisation et outils IA.</p></div>
+      <div class="st s3 reveal"><span class="badge"><i class="ti ti-palette"></i> Design</span><h4>Design UI/UX</h4><p>Design systems, expérience et identité visuelle.</p></div>
+      <div class="st s4 reveal"><span class="badge"><i class="ti ti-trending-up"></i> Business</span><h4>Business & Startup</h4><p>Offres, marketing, acquisition et exécution.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="features" id="platforms" style="padding-bottom:40px">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <div class="section-label">Les modules</div>
+      <h2>Tout votre univers, par espace</h2>
+      <p>Chaque type de contenu a sa page, le même moteur d'organisation partout.</p>
+    </div>
+    <div class="platforms">
+      <div class="pf yt reveal"><i class="ti ti-player-play"></i> Vidéos</div>
+      <div class="pf tt reveal"><i class="ti ti-stack-2"></i> Playlists</div>
+      <div class="pf ig reveal"><i class="ti ti-folder"></i> Fichiers</div>
+      <div class="pf fb reveal"><i class="ti ti-wallet"></i> Finance</div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-section" id="cta">
+  <div class="wrap">
+    <div class="cta-box reveal">
+      <h2>Éclairez votre bibliothèque</h2>
+      <p>Créez votre espace sécurisé et commencez à organiser dès aujourd'hui.</p>
+      <a href="lumen-dashboard.html" class="btn-primary"><i class="ti ti-arrow-right"></i> Explorer la démo</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Lumen — Conçu pour organiser ce que vous regardez. © 2026
+</footer>
+
+<script>
+/* nav scroll */
+const nav=document.getElementById('nav');
+addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>20));
+
+/* reveal on scroll */
+const io=new IntersectionObserver((es)=>{es.forEach((e,i)=>{if(e.isIntersecting){setTimeout(()=>e.target.classList.add('in'),i*60);io.unobserve(e.target)}})},{threshold:0.15});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+/* card spotlight */
+document.querySelectorAll('.card').forEach(c=>{
+  c.addEventListener('mousemove',e=>{
+    const r=c.getBoundingClientRect();
+    c.style.setProperty('--mx',(e.clientX-r.left)+'px');
+    c.style.setProperty('--my',(e.clientY-r.top)+'px');
+  });
+});
+
+/* glow follows mouse in hero */
+const hero=document.querySelector('.hero');
+const glow=document.getElementById('glow');
+let gx=innerWidth/2,gy=innerHeight*0.4,tx=gx,ty=gy;
+hero.addEventListener('mousemove',e=>{tx=e.clientX;ty=e.clientY});
+function animGlow(){gx+=(tx-gx)*0.08;gy+=(ty-gy)*0.08;glow.style.left=gx+'px';glow.style.top=gy+'px';requestAnimationFrame(animGlow)}
+animGlow();
+
+/* ---- interactive grid canvas ---- */
+const cv=document.getElementById('grid-canvas'),ctx=cv.getContext('2d');
+let W,H,dots=[],mouse={x:-999,y:-999};
+const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
+function resize(){
+  W=cv.width=hero.offsetWidth;H=cv.height=hero.offsetHeight;
+  dots=[];const gap=46;
+  for(let x=gap/2;x<W;x+=gap)for(let y=gap/2;y<H;y+=gap)dots.push({x,y,bx:x,by:y});
+}
+resize();addEventListener('resize',resize);
+hero.addEventListener('mousemove',e=>{const r=cv.getBoundingClientRect();mouse.x=e.clientX-r.left;mouse.y=e.clientY-r.top});
+hero.addEventListener('mouseleave',()=>{mouse.x=-999;mouse.y=-999});
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  for(const d of dots){
+    const dx=d.x-mouse.x,dy=d.y-mouse.y,dist=Math.hypot(dx,dy);
+    const R=150;
+    let px=d.bx,py=d.by,size=1.3,a=0.18;
+    if(dist<R){
+      const f=(1-dist/R);
+      const ang=Math.atan2(dy,dx);
+      px=d.bx+Math.cos(ang)*f*14;
+      py=d.by+Math.sin(ang)*f*14;
+      size=1.3+f*2.4;
+      a=0.18+f*0.7;
+      ctx.beginPath();
+      ctx.arc(px,py,size,0,7);
+      ctx.fillStyle=`rgba(${110+f*60},${86+f*90},247,${a})`;
+      ctx.fill();
+    }else{
+      ctx.beginPath();ctx.arc(px,py,size,0,7);
+      ctx.fillStyle=`rgba(150,155,180,${a})`;ctx.fill();
+    }
+  }
+  requestAnimationFrame(draw);
+}
+if(!reduced)draw();else{ctx.fillStyle='rgba(150,155,180,0.15)';for(const d of dots){ctx.beginPath();ctx.arc(d.x,d.y,1.3,0,7);ctx.fill()}}
+</script>
+</body>
+</html>

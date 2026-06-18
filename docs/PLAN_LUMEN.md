@@ -24,7 +24,7 @@
 |-------|-------|-----|---------|------|
 | A1 | A | Renommage VisionHub → Lumen | `lumen/A1-rebrand` | ✅ Terminée, en attente merge |
 | A2 | A | Nouveau design system (CSS) | `lumen/A2-design-system` | ✅ Terminée, en attente merge |
-| A3 | A | Page d'accueil animée | à créer | ⏳ À faire |
+| A3 | A | Page d'accueil animée | `lumen/A3-home-animated` | ✅ Terminée, en attente merge |
 | A4 | A | Dashboard Vidéos + drag-drop | à créer | ⏳ À faire |
 | A5 | A | Lecteur robuste + autres pages | à créer | ⏳ À faire |
 | B1 | B | Couche d'accès aux données | à créer | ⏳ À faire |
@@ -158,21 +158,101 @@ Avant :                          Après :
 
 ---
 
-## Prochaine tâche : A3 — Page d'accueil animée
+## Tâche A3 — Page d'accueil animée ✅
 
-**But :** Transformer `index.html` / `renderHome` en `app.js` pour reproduire la page d'accueil de `lumen-home.html`.
+**Branche :** `lumen/A3-home-animated`
+**Commit :** `b093a2f`
+**Date :** 19 juin 2026
+
+### Ce qui a changé visuellement
+
+#### Hero — avant vs après
+
+**Avant (A2) :**
+- Layout 2 colonnes : texte à gauche, miniature YouTube à droite
+- Hero statique avec image Unsplash en fond (overlay sombre)
+- Boutons simples `.btn.primary` / `.btn`
+- Pas de stats dynamiques
+
+**Après (A3) :**
+- Hero plein écran centré (`min-height: 100svh`)
+- Grille de points animée sur `<canvas>` : les points proches du curseur se déplacent et s'illuminent en violet
+- Halo radial violet qui suit la souris en interpolation douce (× 0.08 par frame)
+- Badge eyebrow avec point cyan animé
+- Grand titre gradient violet → cyan sur « rangé et retrouvable »
+- Deux boutons Lumen (primary + ghost)
+- Stats réelles : **185 vidéos, 9 catégories, ∞ playlists, XML**
+
+```
+Avant (A2) :
+┌─────────────────┬──────────────┐
+│ [LUMEN kicker]  │  [miniature] │
+│ Grand titre     │  YouTube     │
+│ [btn] [btn]     │              │
+└─────────────────┴──────────────┘
+
+Après (A3) :
+╔══════════════════════════════════╗
+║  ·  ·  ·  · [halo violet] ·  ·  ║  ← canvas dots
+║       ○ Votre bibliothèque       ║  ← eyebrow + dot cyan
+║   Tout ce que vous regardez,     ║
+║   rangé et retrouvable.          ║  ← gradient violet→cyan
+║   sous-titre gris                ║
+║  [Ouvrir] [Voir la démo]         ║
+║  185   9   ∞   XML               ║  ← stats dynamiques
+╚══════════════════════════════════╝
+```
+
+#### Sections au scroll
+
+**Nouvelles sections :**
+1. **Fonctions** — 6 cartes avec effet spotlight (radial au curseur via `--mx`/`--my`) et révélation `IntersectionObserver`
+2. **Catégories** — toutes les catégories réelles de la bibliothèque avec couleur d'accent unique
+3. **Modules** — 4 pills cliquables (Vidéos, Playlists, Fichiers, Finance)
+
+**Animations :** `.reveal` → opacité 0 + translateY(26px), glisse au scroll. Désactivé si `prefers-reduced-motion`.
+
+#### Reorganisation de fichiers (même session)
+
+- `maquettes/` : lumen-home.html, lumen-dashboard.html, lumen-preview.html
+- `docs/` : tous les .md de travail (sauf README.md)
+- SVG dupliqués à la racine supprimés (déjà dans `assets/`)
+
+### Fichiers modifiés
+- `index.html` — ajout Tabler Icons CDN
+- `app.js` — `renderHome()` réécrit + `bindHome()` ajouté (canvas, glow, reveal, spotlight)
+- `styles.css` — section home complète remplacée (315 lignes nettes)
+- `docs/PLAN_LUMEN.md`, `docs/SUIVI_PROJET.md`, `docs/AGENTS.md`, etc. → déplacés dans `docs/`
+- `maquettes/` → créé avec les 3 maquettes HTML
+
+---
+
+## Prochaine tâche : A4 — Dashboard Vidéos
+
+**But :** Refondre `videos.html` (`renderVideos`) pour reproduire `lumen-dashboard.html`, branché sur les vraies données.
 
 **Ce qui va changer visuellement :**
-- **Grille de points interactive** sur fond noir : les points proches du curseur grossissent et s'illuminent en violet
-- **Halo radial violet** qui suit la souris en douceur
-- **Stats dynamiques** sous le hero : nombre réel de vidéos (185), catégories (6), ∞ playlists, XML
-- **Sections** : Fonctions (6 cartes avec effet spotlight), Catégories réelles, Modules
-- **Animations au scroll** (IntersectionObserver) pour les cartes
+- Layout 3 colonnes : sidebar gauche + grille vidéos + barre playlists droite
+- Cartes vidéo avec vignette YouTube, badge source, orbe au survol
+- Glisser-déposer : vidéo → playlist → ajout + toast de confirmation
 
-**Différence attendue :**
 ```
-Avant (A2) : page statique avec hero image en fond + layout 2 colonnes
-Après (A3) : hero plein écran avec canvas animé, boutons Lumen, stats réelles
+Avant (A2) :
+┌─────────────────────────────────────┐
+│ [filtre] [recherche]                │
+│ ┌────┐ ┌────┐ ┌────┐ ┌────┐        │
+│ │vid │ │vid │ │vid │ │vid │        │
+│ └────┘ └────┘ └────┘ └────┘        │
+└─────────────────────────────────────┘
+
+Après (A4) :
+┌──────┬──────────────────────┬────────┐
+│ Nav  │ [titre] [search] [+] │Playlist│
+│ side │ [filtres catégories] │ ──── │
+│ bar  │ ┌────┐ ┌────┐ ┌────┐│ ──── │
+│      │ │▶vid│ │▶vid│ │▶vid││ drag │
+│      │ └────┘ └────┘ └────┘│ drop │
+└──────┴──────────────────────┴────────┘
 ```
 
 ---
@@ -183,7 +263,7 @@ Après (A3) : hero plein écran avec canvas animé, boutons Lumen, stats réelle
 
 **A1 ✅** Renommage VisionHub → Lumen (logo, favicon, textes, localStorage)
 **A2 ✅** Nouveau design system CSS (palette violet/cyan, Sora+Inter, cartes, boutons)
-**A3 ⏳** Page d'accueil animée (grille canvas interactive, halo souris, stats réelles)
+**A3 ✅** Page d'accueil animée (grille canvas interactive, halo souris, stats réelles)
 **A4 ⏳** Dashboard Vidéos (sidebar + grille cartes + barre playlists + drag-drop)
 **A5 ⏳** Lecteur robuste + toutes les autres pages au nouveau design
 
@@ -205,4 +285,4 @@ Après (A3) : hero plein écran avec canvas animé, boutons Lumen, stats réelle
 
 ---
 
-*Dernière mise à jour : 16 juin 2026 — après tâche A2*
+*Dernière mise à jour : 19 juin 2026 — après tâche A3*

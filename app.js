@@ -56,9 +56,6 @@ function migrateLocalStorageKeys() {
 }
 
 async function init() {
-  bindHeader();
-  markActiveNav();
-
   let xmlText = await loadXmlText();
   try {
     parseLibrary(xmlText);
@@ -489,6 +486,7 @@ function route() {
     finance: renderFinance,
     about: renderAbout
   };
+  document.body.classList.add("vd-mode");
   app.innerHTML = (routes[page] || renderHome)();
   bindPage();
 }
@@ -516,7 +514,7 @@ function renderHome() {
     { icon: 'ti-wallet',      label: 'Finance',   href: 'finance.html' },
   ];
 
-  return `
+  const centerHtml = `
 <div class="home-hero" id="homeHero">
   <canvas id="homeCanvas" aria-hidden="true"></canvas>
   <div class="home-glow" id="homeGlow" aria-hidden="true"></div>
@@ -588,6 +586,148 @@ function renderHome() {
     </div>
   </div>
 </section>`;
+
+  return renderShell({ active: "home", centerHtml, rightHtml: renderPlaylistsList() });
+}
+
+const VD_PL_COLORS = ["pc1", "pc2", "pc3", "pc4", "pc5"];
+const VD_PL_ICONS = ["ti-code", "ti-cpu", "ti-palette", "ti-trending-up", "ti-device-desktop", "ti-brain"];
+
+function renderShell({ active, icon = "ti-sparkles", title = "", subtitle = "", topbarRight = "", subheaderHtml = "", centerHtml = "", rightHtml = "" }) {
+  const videos = allVideos();
+  const playlists = regularPlaylists();
+  const totalLib = videos.filter((video) => !video.imported).length;
+  const totalImp = videos.filter((video) => video.imported).length;
+  const navLink = (key, href, navIcon, label, count) => `<a class="vd-nav-item ${active === key ? "active" : ""}" href="${href}"><i class="ti ${navIcon}"></i><span>${label}</span>${count === undefined ? "" : `<span class="vd-nav-count">${count}</span>`}</a>`;
+  return `<div class="vd-app">
+  <aside class="vd-side">
+    <a class="vd-brand" href="index.html">
+      <img src="assets/lumen-icon-glass.svg" class="vd-brand-mark" alt="" width="28" height="28">
+      <span>Lumen</span>
+    </a>
+    <div class="vd-nav-group">
+      <div class="vd-nav-label">Navigation</div>
+      ${navLink("home", "index.html", "ti-home", "Accueil")}
+      ${navLink("videos", "videos.html", "ti-player-play", "Vidéos", videos.length)}
+      ${navLink("playlists", "playlists.html", "ti-stack-2", "Playlists", playlists.length)}
+      ${navLink("files", "files.html", "ti-folder", "Fichiers")}
+      ${navLink("finance", "finance.html", "ti-wallet", "Finance")}
+      ${navLink("about", "about.html", "ti-info-circle", "À propos")}
+    </div>
+    <div class="vd-nav-group">
+      <div class="vd-nav-label">Périmètre</div>
+      <div class="vd-nav-item" data-vd-filter="library" role="button">
+        <i class="ti ti-books"></i><span>Bibliothèque</span><span class="vd-nav-count">${totalLib}</span>
+      </div>
+      <div class="vd-nav-item" data-vd-filter="imported" role="button">
+        <i class="ti ti-download"></i><span>Importées</span><span class="vd-nav-count">${totalImp}</span>
+      </div>
+    </div>
+    <div class="vd-side-foot">
+      <div class="vd-avatar">YB</div>
+      <div class="vd-side-foot-info">
+        <div class="vd-name">Ma bibliothèque</div>
+        <div class="vd-mode">Local · GitHub Pages</div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="vd-main">
+    ${title ? `<div class="vd-topbar">
+      <div class="vd-topbar-title">
+        <i class="ti ${icon}"></i>
+        <div><h1>${escapeHtml(title)}</h1>${subtitle ? `<div class="vd-topbar-sub">${subtitle}</div>` : ""}</div>
+      </div>
+      ${topbarRight ? `<div class="vd-topbar-actions">${topbarRight}</div>` : ""}
+    </div>` : ""}
+    ${subheaderHtml}
+    <div class="vd-scroll">${centerHtml}</div>
+  </main>
+
+  <aside class="vd-right">${rightHtml}</aside>
+</div>`;
+}
+
+function vdPlaylistItem(list, i) {
+  const cc = VD_PL_COLORS[i % VD_PL_COLORS.length];
+  const ic = VD_PL_ICONS[i % VD_PL_ICONS.length];
+  return `<div class="vd-pl" data-drop-playlist-id="${escapeAttr(list.id)}">
+    <div class="vd-pl-ic ${cc}"><i class="ti ${ic}"></i></div>
+    <div class="vd-pl-info">
+      <div class="vd-pl-name">${escapeHtml(list.title)}</div>
+      <div class="vd-pl-meta">${escapeHtml(categoryName(list.category))}</div>
+    </div>
+    <span class="vd-pl-count" data-pl-count="${escapeAttr(list.id)}">${list.videos.length}</span>
+  </div>`;
+}
+
+function vdCard(video) {
+  const isLib = !video.imported;
+  const href = `videos.html?playlist=${encodeURIComponent(video.playlistId)}&video=${encodeURIComponent(video.id)}`;
+  const tags = (video.tags || []).slice(0, 2);
+  const searchData = `${video.title} ${categoryName(video.category)} ${video.playlistTitle} ${tags.join(" ")}`.toLowerCase();
+  return `<a class="vd-vcard" href="${href}" draggable="true"
+    data-vcard data-video-id="${escapeAttr(video.id)}"
+    data-youtube-id="${escapeAttr(video.youtubeId)}"
+    data-playlist-id="${escapeAttr(video.playlistId)}"
+    data-category="${escapeAttr(video.category)}"
+    data-source="${isLib ? "library" : "imported"}"
+    data-search="${escapeAttr(searchData)}">
+    <div class="vd-thumb">
+      <img src="${thumb(video.youtubeId)}" alt="" loading="lazy">
+      <div class="vd-play-orb"><i class="ti ti-player-play-filled"></i></div>
+      <span class="vd-thumb-src ${isLib ? "vd-src-lib" : "vd-src-imp"}">
+        <span class="vd-dot"></span>${isLib ? "Bibliothèque" : "Importée"}
+      </span>
+      ${video.duration ? `<span class="vd-thumb-dur">${escapeHtml(video.duration)}</span>` : ""}
+    </div>
+    <div class="vd-vbody">
+      <h3>${escapeHtml(video.title)}</h3>
+      <div class="vd-vmeta">
+        <span>${escapeHtml(categoryName(video.category))}</span>
+        <span>·</span>
+        <span>${escapeHtml(video.playlistTitle)}</span>
+      </div>
+      ${tags.length ? `<div class="vd-vtags">${tags.map((t) => `<span class="vd-tag">${escapeHtml(t)}</span>`).join("")}</div>` : ""}
+    </div>
+  </a>`;
+}
+
+function renderPlaylistsList() {
+  const playlists = regularPlaylists();
+  return `<div class="vd-right-head"><h2>Playlists</h2></div>
+    <div class="vd-hint"><i class="ti ti-drag-drop"></i> Glissez une vidéo pour la classer</div>
+    ${playlists.map((list, i) => vdPlaylistItem(list, i)).join("")}`;
+}
+
+function renderVideoAdminBox() {
+  return `<div class="vd-admin-box">
+    <div class="vd-admin-box-title"><i class="ti ti-adjustments"></i> Administration</div>
+    <p>Modifications locales uniquement. Exportez un nouveau <strong>library.xml</strong> pour le dépôt.</p>
+    <div class="vd-admin-btns">
+      <button class="vd-adm-btn primary" id="vdOpenAdmin2"><i class="ti ti-pencil"></i> Organiser la bibliothèque</button>
+      <button class="vd-adm-btn" id="vdExportXml"><i class="ti ti-file-export"></i> Exporter XML</button>
+      <button class="vd-adm-btn" id="vdCopyXml"><i class="ti ti-copy"></i> Copier XML</button>
+    </div>
+    <pre class="vd-export-box" id="vdXmlOutput" hidden></pre>
+  </div>`;
+}
+
+function renderShortcutsPanel() {
+  const videos = allVideos();
+  const playlists = regularPlaylists();
+  const shortcuts = [
+    { href: "videos.html", icon: "ti-player-play", cc: "pc1", label: "Vidéos", meta: `${videos.length} vidéos` },
+    { href: "playlists.html", icon: "ti-stack-2", cc: "pc2", label: "Playlists", meta: `${playlists.length} playlists` },
+    { href: "files.html", icon: "ti-folder", cc: "pc3", label: "Fichiers", meta: `${state.files.length} dossiers` },
+    { href: "finance.html", icon: "ti-wallet", cc: "pc4", label: "Finance", meta: "Suivi léger" }
+  ];
+  return `<div class="vd-right-head"><h2>Raccourcis</h2></div>
+    <div class="vd-hint"><i class="ti ti-bolt"></i> Navigation rapide</div>
+    ${shortcuts.map((s) => `<a class="vd-pl" href="${s.href}">
+      <div class="vd-pl-ic ${s.cc}"><i class="ti ${s.icon}"></i></div>
+      <div class="vd-pl-info"><div class="vd-pl-name">${s.label}</div><div class="vd-pl-meta">${escapeHtml(s.meta)}</div></div>
+    </a>`).join("")}`;
 }
 
 function appCard(title, text, href) {
@@ -597,9 +737,20 @@ function appCard(title, text, href) {
 function renderPlaylists() {
   const params = new URLSearchParams(location.search);
   const current = params.get("category") || "all";
-  return `<section><div class="page-head"><div><p class="kicker">Bibliothèque</p><h1>Playlists dynamiques.</h1><p class="section-intro">Recherche, filtre par catégorie et lance directement la bonne vidéo.</p></div><div class="hero-actions"><button class="btn primary" id="openAdminPanel">Administration</button><button class="btn" id="exportLibraryFromPlaylists">Exporter XML</button></div></div>
-    <div class="filter-bar"><input class="search-input" id="playlistSearch" type="search" placeholder="Rechercher une playlist, tag ou catégorie"><div class="filter-tabs" id="playlistFilters">${filterButtons(current)}</div></div>
-    <div class="playlist-grid" id="playlistGrid">${state.playlists.map(playlistCard).join("")}</div><div id="playlistEmpty"></div>${renderImportedVideosSection("playlists")}${renderAdminDrawer()}<pre class="code-box export-box" id="playlistXmlOutput" hidden></pre></section>`;
+  const topbarRight = `<button class="btn primary" id="openAdminPanel">Administration</button><button class="btn" id="exportLibraryFromPlaylists">Exporter XML</button>`;
+  const subheaderHtml = `<div class="vd-subbar"><div class="filter-bar"><input class="search-input" id="playlistSearch" type="search" placeholder="Rechercher une playlist, tag ou catégorie"><div class="filter-tabs" id="playlistFilters">${filterButtons(current)}</div></div></div>`;
+  const centerHtml = `<p class="section-intro">Recherche, filtre par catégorie et lance directement la bonne vidéo.</p>
+    <div class="playlist-grid" id="playlistGrid">${state.playlists.map(playlistCard).join("")}</div><div id="playlistEmpty"></div>${renderImportedVideosSection("playlists")}<pre class="code-box export-box" id="playlistXmlOutput" hidden></pre>`;
+  return renderShell({
+    active: "playlists",
+    icon: "ti-stack-2",
+    title: "Playlists dynamiques.",
+    subtitle: `${state.playlists.length} playlists · ${state.categories.length} catégories`,
+    topbarRight,
+    subheaderHtml,
+    centerHtml,
+    rightHtml: renderPlaylistsList()
+  }) + renderAdminDrawer();
 }
 
 function filterButtons(current) {
@@ -772,143 +923,39 @@ function renderVideos() {
     </div>${renderImportedVideosSection("videos")}</section>`;
   }
 
-  document.body.classList.add("vd-mode");
   return renderVideoDashboard();
 }
 
 function renderVideoDashboard() {
   const videos = allVideos();
-  const totalLib = videos.filter((v) => !v.imported).length;
-  const totalImp = videos.filter((v) => v.imported).length;
   const playlists = regularPlaylists();
-  const plColors = ["pc1", "pc2", "pc3", "pc4", "pc5"];
-  const plIcons = ["ti-code", "ti-cpu", "ti-palette", "ti-trending-up", "ti-device-desktop", "ti-brain"];
 
-  function vdCard(video) {
-    const isLib = !video.imported;
-    const href = `videos.html?playlist=${encodeURIComponent(video.playlistId)}&video=${encodeURIComponent(video.id)}`;
-    const tags = (video.tags || []).slice(0, 2);
-    const searchData = `${video.title} ${categoryName(video.category)} ${video.playlistTitle} ${tags.join(" ")}`.toLowerCase();
-    return `<a class="vd-vcard" href="${href}" draggable="true"
-      data-vcard data-video-id="${escapeAttr(video.id)}"
-      data-youtube-id="${escapeAttr(video.youtubeId)}"
-      data-playlist-id="${escapeAttr(video.playlistId)}"
-      data-category="${escapeAttr(video.category)}"
-      data-source="${isLib ? "library" : "imported"}"
-      data-search="${escapeAttr(searchData)}">
-      <div class="vd-thumb">
-        <img src="${thumb(video.youtubeId)}" alt="" loading="lazy">
-        <div class="vd-play-orb"><i class="ti ti-player-play-filled"></i></div>
-        <span class="vd-thumb-src ${isLib ? "vd-src-lib" : "vd-src-imp"}">
-          <span class="vd-dot"></span>${isLib ? "Bibliothèque" : "Importée"}
-        </span>
-        ${video.duration ? `<span class="vd-thumb-dur">${escapeHtml(video.duration)}</span>` : ""}
-      </div>
-      <div class="vd-vbody">
-        <h3>${escapeHtml(video.title)}</h3>
-        <div class="vd-vmeta">
-          <span>${escapeHtml(categoryName(video.category))}</span>
-          <span>·</span>
-          <span>${escapeHtml(video.playlistTitle)}</span>
-        </div>
-        ${tags.length ? `<div class="vd-vtags">${tags.map((t) => `<span class="vd-tag">${escapeHtml(t)}</span>`).join("")}</div>` : ""}
-      </div>
-    </a>`;
-  }
-
-  function vdPlaylistItem(list, i) {
-    const cc = plColors[i % plColors.length];
-    const ic = plIcons[i % plIcons.length];
-    return `<div class="vd-pl" data-drop-playlist-id="${escapeAttr(list.id)}">
-      <div class="vd-pl-ic ${cc}"><i class="ti ${ic}"></i></div>
-      <div class="vd-pl-info">
-        <div class="vd-pl-name">${escapeHtml(list.title)}</div>
-        <div class="vd-pl-meta">${escapeHtml(categoryName(list.category))}</div>
-      </div>
-      <span class="vd-pl-count" data-pl-count="${escapeAttr(list.id)}">${list.videos.length}</span>
-    </div>`;
-  }
-
-  return `<div class="vd-app">
-  <aside class="vd-side">
-    <a class="vd-brand" href="index.html">
-      <span class="vd-brand-mark"><i class="ti ti-sparkles"></i></span>
-      <span>Lumen</span>
-    </a>
-    <div class="vd-nav-group">
-      <div class="vd-nav-label">Navigation</div>
-      <a class="vd-nav-item" href="index.html"><i class="ti ti-home"></i><span>Accueil</span></a>
-      <a class="vd-nav-item active" href="videos.html"><i class="ti ti-player-play"></i><span>Vidéos</span><span class="vd-nav-count">${videos.length}</span></a>
-      <a class="vd-nav-item" href="playlists.html"><i class="ti ti-stack-2"></i><span>Playlists</span><span class="vd-nav-count">${playlists.length}</span></a>
-      <a class="vd-nav-item" href="files.html"><i class="ti ti-folder"></i><span>Fichiers</span></a>
-      <a class="vd-nav-item" href="finance.html"><i class="ti ti-wallet"></i><span>Finance</span></a>
-      <a class="vd-nav-item" href="about.html"><i class="ti ti-info-circle"></i><span>À propos</span></a>
+  const topbarRight = `<div class="vd-search">
+      <i class="ti ti-search"></i>
+      <input id="vdSearch" type="search" placeholder="Rechercher une vidéo…" autocomplete="off">
     </div>
-    <div class="vd-nav-group">
-      <div class="vd-nav-label">Périmètre</div>
-      <div class="vd-nav-item" data-vd-filter="library" role="button">
-        <i class="ti ti-books"></i><span>Bibliothèque</span><span class="vd-nav-count">${totalLib}</span>
-      </div>
-      <div class="vd-nav-item" data-vd-filter="imported" role="button">
-        <i class="ti ti-download"></i><span>Importées</span><span class="vd-nav-count">${totalImp}</span>
-      </div>
-    </div>
-    <div class="vd-side-foot">
-      <div class="vd-avatar">YB</div>
-      <div class="vd-side-foot-info">
-        <div class="vd-name">Ma bibliothèque</div>
-        <div class="vd-mode">Local · GitHub Pages</div>
-      </div>
-    </div>
-  </aside>
+    <button class="vd-add-btn" id="openAdminPanel"><i class="ti ti-pencil"></i> Organiser</button>`;
 
-  <main class="vd-main">
-    <div class="vd-topbar">
-      <div class="vd-topbar-title">
-        <i class="ti ti-player-play"></i>
-        <div>
-          <h1>Vidéos</h1>
-          <div class="vd-topbar-sub">${videos.length} vidéos · ${playlists.length} playlists · ${state.categories.length} catégories</div>
-        </div>
-      </div>
-      <div class="vd-search">
-        <i class="ti ti-search"></i>
-        <input id="vdSearch" type="search" placeholder="Rechercher une vidéo…" autocomplete="off">
-      </div>
-      <button class="vd-add-btn" id="openAdminPanel"><i class="ti ti-pencil"></i> Organiser</button>
-    </div>
-
-    <div class="vd-filters" id="vdFilters">
+  const subheaderHtml = `<div class="vd-filters" id="vdFilters">
       <button class="vd-chip active" data-filter="all"><i class="ti ti-apps"></i> Toutes <span class="vd-chip-count">${videos.length}</span></button>
       <button class="vd-chip" data-filter="library"><i class="ti ti-books"></i> Bibliothèque</button>
       <button class="vd-chip" data-filter="imported"><i class="ti ti-download"></i> Importées</button>
       ${state.categories.map((cat) => `<button class="vd-chip" data-filter="cat:${escapeAttr(cat.id)}"><i class="ti ti-tag"></i> ${escapeHtml(cat.title)}</button>`).join("")}
-    </div>
+    </div>`;
 
-    <div class="vd-scroll">
-      <div class="vd-grid" id="vdGrid">${videos.map(vdCard).join("")}</div>
-      <div id="vdEmpty"></div>
-    </div>
-  </main>
+  const centerHtml = `<div class="vd-grid" id="vdGrid">${videos.map(vdCard).join("")}</div>
+    <div id="vdEmpty"></div>`;
 
-  <aside class="vd-right">
-    <div class="vd-right-head"><h2>Playlists</h2></div>
-    <div class="vd-hint"><i class="ti ti-drag-drop"></i> Glissez une vidéo pour la classer</div>
-    ${playlists.map((list, i) => vdPlaylistItem(list, i)).join("")}
-    <div class="vd-admin-box">
-      <div class="vd-admin-box-title"><i class="ti ti-adjustments"></i> Administration</div>
-      <p>Modifications locales uniquement. Exportez un nouveau <strong>library.xml</strong> pour le dépôt.</p>
-      <div class="vd-admin-btns">
-        <button class="vd-adm-btn primary" id="vdOpenAdmin2"><i class="ti ti-pencil"></i> Organiser la bibliothèque</button>
-        <button class="vd-adm-btn" id="vdExportXml"><i class="ti ti-file-export"></i> Exporter XML</button>
-        <button class="vd-adm-btn" id="vdCopyXml"><i class="ti ti-copy"></i> Copier XML</button>
-      </div>
-      <pre class="vd-export-box" id="vdXmlOutput" hidden></pre>
-    </div>
-  </aside>
-</div>
-<div class="vd-toast" id="vdToast"><i class="ti ti-check" id="vdToastIcon"></i> <span id="vdToastMsg"></span></div>
-${renderAdminDrawer()}`;
+  return renderShell({
+    active: "videos",
+    icon: "ti-player-play",
+    title: "Vidéos",
+    subtitle: `${videos.length} vidéos · ${playlists.length} playlists · ${state.categories.length} catégories`,
+    topbarRight,
+    subheaderHtml,
+    centerHtml,
+    rightHtml: renderPlaylistsList() + renderVideoAdminBox()
+  }) + `<div class="vd-toast" id="vdToast"><i class="ti ti-check" id="vdToastIcon"></i> <span id="vdToastMsg"></span></div>${renderAdminDrawer()}`;
 }
 
 function renderImportedVideosSection(context) {
@@ -976,26 +1023,49 @@ function videoRow(video, playlistId, isActive) {
 }
 
 function renderFiles() {
-  return `<section><div class="page-head"><div><p class="kicker">File OS</p><h1>Organisation des fichiers.</h1><p class="section-intro">Dossiers, notes, liens, tags, statuts, recherche et export versionnable.</p></div><button class="btn" id="exportWorkspace">Exporter XML</button></div>
-    <div class="filter-bar workspace-tools">
+  const topbarRight = `<button class="btn" id="exportWorkspace">Exporter XML</button>`;
+  const subheaderHtml = `<div class="vd-subbar"><div class="filter-bar workspace-tools">
       <input class="search-input" id="fileSearch" type="search" placeholder="Rechercher un dossier, lien, note, tag ou statut">
       <select class="select-input" id="fileTypeFilter"><option value="all">Tous les types</option><option value="video">Vidéos</option><option value="lien">Liens</option><option value="document">Documents</option><option value="note">Notes</option><option value="local">Fichiers locaux</option></select>
       <div class="filter-tabs" id="fileView"><button class="tab-btn active" data-view="grid">Grille</button><button class="tab-btn" data-view="list">Liste</button></div>
-    </div>
-    <div class="workspace-layout">
-      <div><div class="file-grid" id="fileGrid">${state.files.map(folderCard).join("")}</div><div id="fileEmpty"></div></div>
-      <aside class="studio-panel"><h2>Ajouter localement</h2><form id="folderForm" class="studio-form"><label>Dossier<input class="search-input" name="title" required></label><label>Description<textarea name="description"></textarea></label><label>Tags<input class="search-input" name="tags" placeholder="Clients, Docs, Priorité"></label><button class="btn primary">Créer dossier</button></form><hr class="soft-line"><form id="fileForm" class="studio-form"><label>Dans<select class="select-input" name="folderId">${state.files.map((folder) => `<option value="${folder.id}">${escapeHtml(folder.title)}</option>`).join("")}</select></label><label>Titre<input class="search-input" name="title" required></label><label>Type<select class="select-input" name="type"><option>note</option><option>lien</option><option>document</option><option>table</option></select></label><label>URL<input class="search-input" name="url" placeholder="https://..."></label><label>Statut<input class="search-input" name="status" value="Actif"></label><label>Tags<input class="search-input" name="tags"></label><button class="btn primary">Ajouter item</button></form></aside>
-    </div><pre class="code-box export-box" id="workspaceOutput" hidden></pre></section>`;
+    </div></div>`;
+  const centerHtml = `<div class="file-grid" id="fileGrid">${state.files.map(folderCard).join("")}</div><div id="fileEmpty"></div><pre class="code-box export-box" id="workspaceOutput" hidden></pre>`;
+  const rightHtml = `<div class="vd-right-head"><h2>Ajouter localement</h2></div>
+    <form id="folderForm" class="studio-form"><label>Dossier<input class="search-input" name="title" required></label><label>Description<textarea name="description"></textarea></label><label>Tags<input class="search-input" name="tags" placeholder="Clients, Docs, Priorité"></label><button class="btn primary">Créer dossier</button></form>
+    <hr class="soft-line">
+    <form id="fileForm" class="studio-form"><label>Dans<select class="select-input" name="folderId">${state.files.map((folder) => `<option value="${folder.id}">${escapeHtml(folder.title)}</option>`).join("")}</select></label><label>Titre<input class="search-input" name="title" required></label><label>Type<select class="select-input" name="type"><option>note</option><option>lien</option><option>document</option><option>table</option></select></label><label>URL<input class="search-input" name="url" placeholder="https://..."></label><label>Statut<input class="search-input" name="status" value="Actif"></label><label>Tags<input class="search-input" name="tags"></label><button class="btn primary">Ajouter item</button></form>`;
+  return renderShell({
+    active: "files",
+    icon: "ti-folder",
+    title: "Organisation des fichiers.",
+    subtitle: `${state.files.length} dossiers`,
+    topbarRight,
+    subheaderHtml,
+    centerHtml,
+    rightHtml
+  });
 }
 
 function renderFinance() {
   const revenue = financeTotal("revenue");
   const expenses = financeTotal("expense");
   const balance = revenue - expenses;
-  return `<section><div class="page-head"><div><p class="kicker">Finance cockpit</p><h1>Suivi finance léger.</h1><p class="section-intro">Revenus, dépenses, budget, objectifs et export. Ce module n’est pas une comptabilité officielle.</p></div><div class="hero-actions"><button class="btn" id="exportFinanceCsv">CSV</button><button class="btn" id="exportFinanceXml">XML</button></div></div>
-    <div class="grid-3"><article class="metric-card"><span class="eyebrow">Revenus</span><strong>${money(revenue)}</strong><p>Total des entrées suivies.</p></article><article class="metric-card"><span class="eyebrow">Dépenses</span><strong>${money(expenses)}</strong><p>Total des sorties prévues ou payées.</p></article><article class="metric-card"><span class="eyebrow">Solde</span><strong>${money(balance)}</strong><p>Budget disponible estimé.</p></article></div>
-    <div class="finance-layout section"><article class="studio-panel"><h2>Transactions</h2><form id="transactionForm" class="studio-form compact-form"><select class="select-input" name="type"><option value="revenue">Revenu</option><option value="expense">Dépense</option></select><input class="search-input" name="title" placeholder="Libellé" required><input class="search-input" name="category" placeholder="Catégorie" required><input class="search-input" name="amount" type="number" min="0" step="0.01" placeholder="Montant" required><input class="search-input" name="date" type="date" required><button class="btn primary">Ajouter</button></form><div class="transaction-list">${state.finance.transactions.map(transactionRow).join("") || `<div class="empty-state"><strong>Aucune transaction</strong></div>`}</div></article>
-    <aside class="studio-panel"><h2>Objectifs</h2><form id="goalForm" class="studio-form"><label>Objectif<input class="search-input" name="title" required></label><label>Cible<input class="search-input" name="target" type="number" min="0" step="0.01" required></label><label>Actuel<input class="search-input" name="current" type="number" min="0" step="0.01" value="0"></label><label>Échéance<input class="search-input" name="deadline" type="date"></label><button class="btn primary">Ajouter objectif</button></form><div class="goal-list">${state.finance.goals.map(goalCard).join("") || `<p class="meta">Ajoute un objectif pour suivre sa progression.</p>`}</div></aside></div><pre class="code-box export-box" id="financeOutput" hidden></pre></section>`;
+  const topbarRight = `<button class="btn" id="exportFinanceCsv">CSV</button><button class="btn" id="exportFinanceXml">XML</button>`;
+  const centerHtml = `<div class="grid-3"><article class="metric-card"><span class="eyebrow">Revenus</span><strong>${money(revenue)}</strong><p>Total des entrées suivies.</p></article><article class="metric-card"><span class="eyebrow">Dépenses</span><strong>${money(expenses)}</strong><p>Total des sorties prévues ou payées.</p></article><article class="metric-card"><span class="eyebrow">Solde</span><strong>${money(balance)}</strong><p>Budget disponible estimé.</p></article></div>
+    <article class="studio-panel section"><h2>Transactions</h2><form id="transactionForm" class="studio-form compact-form"><select class="select-input" name="type"><option value="revenue">Revenu</option><option value="expense">Dépense</option></select><input class="search-input" name="title" placeholder="Libellé" required><input class="search-input" name="category" placeholder="Catégorie" required><input class="search-input" name="amount" type="number" min="0" step="0.01" placeholder="Montant" required><input class="search-input" name="date" type="date" required><button class="btn primary">Ajouter</button></form><div class="transaction-list">${state.finance.transactions.map(transactionRow).join("") || `<div class="empty-state"><strong>Aucune transaction</strong></div>`}</div></article>
+    <pre class="code-box export-box" id="financeOutput" hidden></pre>`;
+  const rightHtml = `<div class="vd-right-head"><h2>Objectifs</h2></div>
+    <form id="goalForm" class="studio-form"><label>Objectif<input class="search-input" name="title" required></label><label>Cible<input class="search-input" name="target" type="number" min="0" step="0.01" required></label><label>Actuel<input class="search-input" name="current" type="number" min="0" step="0.01" value="0"></label><label>Échéance<input class="search-input" name="deadline" type="date"></label><button class="btn primary">Ajouter objectif</button></form>
+    <div class="goal-list">${state.finance.goals.map(goalCard).join("") || `<p class="meta">Ajoute un objectif pour suivre sa progression.</p>`}</div>`;
+  return renderShell({
+    active: "finance",
+    icon: "ti-wallet",
+    title: "Suivi finance léger.",
+    subtitle: `Solde ${money(balance)}`,
+    topbarRight,
+    centerHtml,
+    rightHtml
+  });
 }
 
 function folderCard(folder) {
@@ -1043,17 +1113,25 @@ function renderAbout() {
     "Aucune clé secrète côté client",
     "Cloud = surcouche, jamais obligatoire",
   ];
-  return `<section><div class="page-head"><div><p class="kicker">Architecture Lumen</p><h1>Bibliothèque personnelle, modulaire et évolutive.</h1><p class="section-intro">Local-first, statique, GitHub Pages. Le cloud est une surcouche optionnelle — jamais une dépendance pour afficher la bibliothèque.</p></div></div>
+  const centerHtml = `<p class="section-intro">Local-first, statique, GitHub Pages. Le cloud est une surcouche optionnelle — jamais une dépendance pour afficher la bibliothèque.</p>
   <div class="grid-3">
     ${appCard("Phase A — Design ✅", "Nouveau design Lumen (violet/cyan, Sora+Inter), page d'accueil animée, dashboard vidéos 3 colonnes, lecteur robuste.", "videos.html")}
     ${appCard("Phase B — Données", "Couche d'accès unifiée store.js, modèle de données cible, schéma SQL Supabase — préparation cloud sans dépendance obligatoire.", "playlists.html")}
     ${appCard("Phase C — Cloud", "Comptes Supabase, authentification email, Row Level Security par utilisateur, migration locale → cloud, synchronisation offline-safe.", "about.html")}
   </div>
-  <div class="grid-3" style="margin-top:28px">
+  <div class="grid-3 section">
     <article class="content-card"><div class="card-meta"><span class="badge">Tech</span></div><h3>Stack technique</h3><ul class="about-list">${techStack.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></article>
     <article class="content-card"><div class="card-meta"><span class="badge">Données</span></div><h3>Sources de données</h3><ul class="about-list">${dataSources.map(([file, desc]) => `<li><code>${escapeHtml(file)}</code> — ${escapeHtml(desc)}</li>`).join("")}</ul></article>
     <article class="content-card"><div class="card-meta"><span class="badge">Invariants</span></div><h3>Règles d'or</h3><ul class="about-list">${rules.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul></article>
-  </div></section>`;
+  </div>`;
+  return renderShell({
+    active: "about",
+    icon: "ti-info-circle",
+    title: "Bibliothèque personnelle, modulaire et évolutive.",
+    subtitle: "Architecture Lumen",
+    centerHtml,
+    rightHtml: renderShortcutsPanel()
+  });
 }
 
 function bindPage() {
@@ -1148,18 +1226,6 @@ function bindHome() {
     }
     requestAnimationFrame(draw);
   })();
-}
-
-function bindHeader() {
-  document.querySelector("#menuToggle")?.addEventListener("click", () => {
-    const nav = document.querySelector("#mainNav");
-    nav.classList.toggle("open");
-    document.querySelector("#menuToggle").setAttribute("aria-expanded", nav.classList.contains("open"));
-  });
-}
-
-function markActiveNav() {
-  document.querySelector(`[data-page-link="${page}"]`)?.classList.add("active");
 }
 
 function bindFavorites() {

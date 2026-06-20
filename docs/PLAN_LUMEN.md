@@ -27,6 +27,13 @@
 | A3 | A | Page d'accueil animée | `lumen/A3-home-animated` | ✅ Terminée, en attente merge |
 | A4 | A | Dashboard Vidéos + drag-drop | `lumen/A3-home-animated` | ✅ Terminée, en attente merge |
 | A5 | A | Lecteur robuste + autres pages | `lumen/A3-home-animated` | ✅ Terminée, en attente merge |
+| V2-1 | V2 | Coquille de page partagée | `lumen/v2-1-shared-shell` | ✅ Terminée, en attente merge |
+| V2-2 | V2 | Playlist au centre, catégorie en étiquette | à créer | ⏳ À faire |
+| V2-3 | V2 | Administration rapide | à créer | ⏳ À faire |
+| V2-4 | V2 | Page Fichiers (vrais fichiers) | à créer | ⏳ À faire |
+| V2-5 | V2 | Import de playlist YouTube | à créer | ⏳ À faire |
+| V2-6 | V2 | À propos → tableau de bord/réglages | à créer | ⏳ À faire |
+| V2-7 | V2 | Habillage visuel | à créer | ⏳ À faire |
 | B1 | B | Couche d'accès aux données | à créer | ⏳ À faire |
 | B2 | B | Modèle de données + schéma SQL | à créer | ⏳ À faire |
 | C1 | C | Connexion Supabase | à créer | ⏳ À faire |
@@ -344,7 +351,65 @@ Toutes les tâches A1 → A5 sont terminées. Le site est entièrement re-design
 
 ---
 
-## Prochaine tâche : B1 — Couche d'accès aux données
+## Tâche V2-1 — Coquille de page partagée ✅
+
+**Branche :** `lumen/v2-1-shared-shell`
+**Date :** 20 juin 2026
+**Source :** `docs/LUMEN_MODIFICATIONS_V2.md`
+
+### Ce qui a changé visuellement
+
+#### Architecture des pages — avant vs après
+
+**Avant (fin Phase A) :**
+- Seule la page Vidéos avait une mise en page « 3 colonnes » (sidebar + grille + barre playlists).
+- Accueil, Playlists, Fichiers, Finance, À propos gardaient l'ancien `site-header` (logo + nav horizontale) + `site-footer`, chacun avec sa propre mise en page (`page-head`, `hero-actions`, `workspace-layout`, `finance-layout`...).
+- Le logo de la sidebar Vidéos était une icône `ti-sparkles` générique, pas le vrai logo Lumen.
+
+**Après (V2-1) :**
+- Une fonction unique `renderShell({active, icon, title, subtitle, topbarRight, subheaderHtml, centerHtml, rightHtml})` produit la sidebar gauche (`.vd-side`), la zone centrale (`.vd-main` avec barre de titre optionnelle) et la barre droite (`.vd-right`) — utilisée par les 6 pages (`renderHome`, `renderVideoDashboard`, `renderPlaylists`, `renderFiles`, `renderFinance`, `renderAbout`).
+- Le vieux `site-header`/`site-footer` (et le menu mobile associé) a été retiré des 6 pages HTML : il était de toute façon masqué sur Vidéos depuis A4, et devient désormais inutile partout puisque la sidebar le remplace.
+- Le vrai logo (`assets/lumen-icon-glass.svg`) apparaît dans la sidebar de toutes les pages (remplace l'icône `ti-sparkles`).
+- La barre droite est dynamique : liste des playlists + glisser-déposer sur **Vidéos** (+ bloc Administration/Export XML, inchangé) et sur **Playlists** (liste seule) ; formulaires « Ajouter localement » déplacés dans la barre droite sur **Fichiers** et formulaire « Objectifs » sur **Finance** (réutilisation des asides existants plutôt que duplication) ; panneau « Raccourcis » (liens rapides) sur **À propos**.
+- L'accueil garde son hero plein cadre (canvas interactif + halo souris) à l'intérieur de la coquille : pas de barre de titre sur cette page pour ne pas couper le hero, mais la sidebar reste identique.
+
+```
+Avant :                                  Après :
+┌─────────────────────────────┐          ┌──────┬─────────────────┬──────────┐
+│ [Header Lumen + nav horiz.] │          │ Lumen│ Titre + actions │ Playlists│
+│  contenu spécifique par page│          │ Accueil ...          │  ou      │
+│ [Footer]                    │          │ Vidéos (active)      │ Raccourcis│
+└─────────────────────────────┘          │ ...  │   contenu page  │  ou      │
+        (sauf Vidéos déjà en 3 colonnes) │ YB   │                 │ Formulaire│
+                                          └──────┴─────────────────┴──────────┘
+                                                  (identique sur les 6 pages)
+```
+
+### Décisions prises (zones d'ambiguïté du document V2)
+
+- **Hero Accueil :** gardé à l'intérieur de la coquille (option proposée par le document) plutôt qu'en pleine largeur, pour ne pas casser la cohérence de navigation — la sidebar reste visible même sur l'accueil.
+- **Bloc Administration (Export/Copier XML) :** gardé uniquement sur Vidéos (pas dupliqué sur Playlists), car Playlists a déjà son propre bouton « Exporter XML » testé par Playwright (`#exportLibraryFromPlaylists`) — dupliquer le libellé aurait cassé ce test (deux boutons avec le même nom accessible).
+- **Glisser-déposer sur Playlists :** la liste de playlists est généralisée (même composant que Vidéos) mais l'écoute des événements de drop n'est branchée que sur Vidéos pour l'instant — Playlists n'a pas de cartes vidéo glissables dans son contenu central. Câblage complet du drag-and-drop multi-page laissé pour V2-2/V2-3.
+- **Nettoyage CSS :** les règles CSS du vieux header/footer (`.site-header`, `.main-nav`, `.menu-toggle`, `.site-footer`, etc.) ont été supprimées car prouvées mortes (markup retiré des 6 pages). Les règles `.workspace-layout`/`.finance-layout`/`.studio-grid` (devenues mortes par ce refactor) ont aussi été retirées. D'autres classes déjà mortes avant V2-1 (`.hero`, `.hero-copy`, `.brand`...) n'ont pas été touchées — hors périmètre.
+
+### Bug pré-existant constaté (non lié à V2-1)
+
+Le test Playwright `imported YouTube resources are visible searchable and organizable` échouait déjà **avant** V2-1 : il navigue vers `/videos.html` sans paramètres et attend la vue lecteur (`#playerInfo`, `#playlistSelect`), mais depuis A4 cette URL affiche le dashboard 3 colonnes. Confirmé par un test sur la branche `lumen/A3-home-animated` avant toute modification (3 passed / 1 failed, même résultat après V2-1). À corriger dans une tâche dédiée si besoin.
+
+### Fichiers modifiés
+- `app.js` — nouvelle fonction `renderShell()` + helpers (`vdPlaylistItem`, `vdCard`, `renderPlaylistsList`, `renderVideoAdminBox`, `renderShortcutsPanel`) ; `renderHome`, `renderVideoDashboard`, `renderPlaylists`, `renderFiles`, `renderFinance`, `renderAbout` réécrits pour utiliser la coquille ; `route()` applique `vd-mode` globalement ; suppression de `bindHeader()`/`markActiveNav()` (devenues mortes).
+- `styles.css` — généralisation de `body.vd-mode .page-shell` (remplace les règles spécifiques à `[data-page="videos"]`/`[data-page="home"]`), nouvelles classes `.vd-topbar-actions`/`.vd-subbar`, `.vd-brand-mark` adapté pour un `<img>` réel, suppression du CSS mort (header/footer/nav mobile, `.workspace-layout`/`.finance-layout`/`.studio-grid`).
+- `index.html`, `videos.html`, `playlists.html`, `files.html`, `finance.html`, `about.html` — retrait du `site-header`/`site-footer` ; ajout du CDN Tabler Icons sur les 4 pages qui ne l'avaient pas encore (playlists, files, finance, about).
+
+### Comment tester
+```
+npm run check:js && npx playwright test
+```
+3 tests passent, 1 échoue (pré-existant, voir ci-dessus). Vérifié aussi manuellement via Playwright (captures + 0 erreur console) sur les 6 pages, et ouverture du panneau admin depuis les deux emplacements sur Vidéos.
+
+---
+
+## Prochaine tâche : V2-2 — Playlist au centre, catégorie en étiquette
 
 ---
 
@@ -376,4 +441,4 @@ Toutes les tâches A1 → A5 sont terminées. Le site est entièrement re-design
 
 ---
 
-*Dernière mise à jour : 19 juin 2026 — après tâche A5 (fin Phase A)*
+*Dernière mise à jour : 20 juin 2026 — après tâche V2-1 (coquille de page partagée)*

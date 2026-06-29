@@ -596,55 +596,39 @@ const VD_PL_ICONS = ["ti-code", "ti-cpu", "ti-palette", "ti-trending-up", "ti-de
 function renderShell({ active, icon = "ti-sparkles", title = "", subtitle = "", topbarRight = "", subheaderHtml = "", centerHtml = "", rightHtml = "" }) {
   const videos = allVideos();
   const playlists = regularPlaylists();
-  const totalLib = videos.filter((video) => !video.imported).length;
-  const totalImp = videos.filter((video) => video.imported).length;
-  const navLink = (key, href, navIcon, label, count) => `<a class="vd-nav-item ${active === key ? "active" : ""}" href="${href}"><i class="ti ${navIcon}"></i><span>${label}</span>${count === undefined ? "" : `<span class="vd-nav-count">${count}</span>`}</a>`;
+  const navLink = (key, href, navIcon, label, count) => `<a class="vd-nav-link ${active === key ? "active" : ""}" href="${href}"><i class="ti ${navIcon}"></i><span>${label}</span>${count === undefined ? "" : `<span class="vd-nav-count">${count}</span>`}</a>`;
   return `<div class="vd-app">
-  <aside class="vd-side">
+  <header class="vd-topnav">
     <a class="vd-brand" href="index.html">
-      <img src="assets/lumen-icon-glass.svg" class="vd-brand-mark" alt="" width="28" height="28">
+      <img src="assets/lumen-icon-glass.svg" class="vd-brand-mark" alt="" width="26" height="26">
       <span>Lumen</span>
     </a>
-    <div class="vd-nav-group">
-      <div class="vd-nav-label">Navigation</div>
+    <nav class="vd-nav">
       ${navLink("home", "index.html", "ti-home", "Accueil")}
       ${navLink("videos", "videos.html", "ti-player-play", "Vidéos", videos.length)}
       ${navLink("playlists", "playlists.html", "ti-stack-2", "Playlists", playlists.length)}
       ${navLink("files", "files.html", "ti-folder", "Fichiers")}
       ${navLink("finance", "finance.html", "ti-wallet", "Finance")}
       ${navLink("about", "about.html", "ti-info-circle", "À propos")}
-    </div>
-    <div class="vd-nav-group">
-      <div class="vd-nav-label">Périmètre</div>
-      <div class="vd-nav-item" data-vd-filter="library" role="button">
-        <i class="ti ti-books"></i><span>Bibliothèque</span><span class="vd-nav-count">${totalLib}</span>
-      </div>
-      <div class="vd-nav-item" data-vd-filter="imported" role="button">
-        <i class="ti ti-download"></i><span>Importées</span><span class="vd-nav-count">${totalImp}</span>
-      </div>
-    </div>
-    <div class="vd-side-foot">
+    </nav>
+    <div class="vd-topnav-end">
       <div class="vd-avatar">YB</div>
-      <div class="vd-side-foot-info">
-        <div class="vd-name">Ma bibliothèque</div>
-        <div class="vd-mode">Local · GitHub Pages</div>
-      </div>
     </div>
-  </aside>
-
-  <main class="vd-main">
-    ${title ? `<div class="vd-topbar">
-      <div class="vd-topbar-title">
-        <i class="ti ${icon}"></i>
-        <div><h1>${escapeHtml(title)}</h1>${subtitle ? `<div class="vd-topbar-sub">${subtitle}</div>` : ""}</div>
-      </div>
-      ${topbarRight ? `<div class="vd-topbar-actions">${topbarRight}</div>` : ""}
-    </div>` : ""}
-    ${subheaderHtml}
-    <div class="vd-scroll">${centerHtml}</div>
-  </main>
-
-  <aside class="vd-right">${rightHtml}</aside>
+  </header>
+  <div class="vd-body">
+    <main class="vd-main">
+      ${title ? `<div class="vd-topbar">
+        <div class="vd-topbar-title">
+          <i class="ti ${icon}"></i>
+          <div><h1>${escapeHtml(title)}</h1>${subtitle ? `<div class="vd-topbar-sub">${subtitle}</div>` : ""}</div>
+        </div>
+        ${topbarRight ? `<div class="vd-topbar-actions">${topbarRight}</div>` : ""}
+      </div>` : ""}
+      ${subheaderHtml}
+      <div class="vd-scroll">${centerHtml}</div>
+    </main>
+    <aside class="vd-right">${rightHtml}</aside>
+  </div>
 </div>`;
 }
 
@@ -1587,15 +1571,6 @@ function bindVideoDashboard() {
     filterVdGrid();
   });
 
-  document.querySelectorAll("[data-vd-filter]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const filter = btn.dataset.vdFilter;
-      document.querySelectorAll(".vd-chip").forEach((c) => c.classList.remove("active"));
-      const target = document.querySelector(`.vd-chip[data-filter="${filter}"]`);
-      if (target) target.classList.add("active");
-      filterVdGrid();
-    });
-  });
 
   let dragged = null;
   document.querySelectorAll("[data-vcard]").forEach((card) => {

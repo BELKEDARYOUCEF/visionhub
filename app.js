@@ -587,7 +587,7 @@ function renderHome() {
   </div>
 </section>`;
 
-  return renderShell({ active: "home", centerHtml, rightHtml: renderPlaylistsList() });
+  return renderShell({ active: "home", centerHtml });
 }
 
 const VD_PL_COLORS = ["pc1", "pc2", "pc3", "pc4", "pc5"];
@@ -615,7 +615,7 @@ function renderShell({ active, icon = "ti-sparkles", title = "", subtitle = "", 
       <div class="vd-avatar">YB</div>
     </div>
   </header>
-  <div class="vd-body">
+  <div class="vd-body${rightHtml ? " has-right" : ""}">
     <main class="vd-main">
       ${title ? `<div class="vd-topbar">
         <div class="vd-topbar-title">
@@ -627,7 +627,7 @@ function renderShell({ active, icon = "ti-sparkles", title = "", subtitle = "", 
       ${subheaderHtml}
       <div class="vd-scroll">${centerHtml}</div>
     </main>
-    <aside class="vd-right">${rightHtml}</aside>
+    ${rightHtml ? `<aside class="vd-right">${rightHtml}</aside>` : ""}
   </div>
 </div>`;
 }
@@ -732,8 +732,7 @@ function renderPlaylists() {
     subtitle: `${state.playlists.length} playlists · ${state.categories.length} catégories`,
     topbarRight,
     subheaderHtml,
-    centerHtml,
-    rightHtml: renderPlaylistsList()
+    centerHtml
   }) + renderAdminDrawer();
 }
 
@@ -1013,11 +1012,11 @@ function renderFiles() {
       <select class="select-input" id="fileTypeFilter"><option value="all">Tous les types</option><option value="video">Vidéos</option><option value="lien">Liens</option><option value="document">Documents</option><option value="note">Notes</option><option value="local">Fichiers locaux</option></select>
       <div class="filter-tabs" id="fileView"><button class="tab-btn active" data-view="grid">Grille</button><button class="tab-btn" data-view="list">Liste</button></div>
     </div></div>`;
-  const centerHtml = `<div class="file-grid" id="fileGrid">${state.files.map(folderCard).join("")}</div><div id="fileEmpty"></div><pre class="code-box export-box" id="workspaceOutput" hidden></pre>`;
-  const rightHtml = `<div class="vd-right-head"><h2>Ajouter localement</h2></div>
-    <form id="folderForm" class="studio-form"><label>Dossier<input class="search-input" name="title" required></label><label>Description<textarea name="description"></textarea></label><label>Tags<input class="search-input" name="tags" placeholder="Clients, Docs, Priorité"></label><button class="btn primary">Créer dossier</button></form>
-    <hr class="soft-line">
-    <form id="fileForm" class="studio-form"><label>Dans<select class="select-input" name="folderId">${state.files.map((folder) => `<option value="${folder.id}">${escapeHtml(folder.title)}</option>`).join("")}</select></label><label>Titre<input class="search-input" name="title" required></label><label>Type<select class="select-input" name="type"><option>note</option><option>lien</option><option>document</option><option>table</option></select></label><label>URL<input class="search-input" name="url" placeholder="https://..."></label><label>Statut<input class="search-input" name="status" value="Actif"></label><label>Tags<input class="search-input" name="tags"></label><button class="btn primary">Ajouter item</button></form>`;
+  const centerHtml = `<div class="file-grid" id="fileGrid">${state.files.map(folderCard).join("")}</div><div id="fileEmpty"></div><pre class="code-box export-box" id="workspaceOutput" hidden></pre>
+    <div class="studio-grid section">
+      <article class="studio-panel"><h3>Créer un dossier</h3><form id="folderForm" class="studio-form"><label>Nom<input class="search-input" name="title" required></label><label>Description<textarea name="description"></textarea></label><label>Tags<input class="search-input" name="tags" placeholder="Clients, Docs, Priorité"></label><button class="btn primary">Créer dossier</button></form></article>
+      <article class="studio-panel"><h3>Ajouter un item</h3><form id="fileForm" class="studio-form"><label>Dans<select class="select-input" name="folderId">${state.files.map((folder) => `<option value="${folder.id}">${escapeHtml(folder.title)}</option>`).join("")}</select></label><label>Titre<input class="search-input" name="title" required></label><label>Type<select class="select-input" name="type"><option>note</option><option>lien</option><option>document</option><option>table</option></select></label><label>URL<input class="search-input" name="url" placeholder="https://..."></label><label>Statut<input class="search-input" name="status" value="Actif"></label><label>Tags<input class="search-input" name="tags"></label><button class="btn primary">Ajouter item</button></form></article>
+    </div>`;
   return renderShell({
     active: "files",
     icon: "ti-folder",
@@ -1025,8 +1024,7 @@ function renderFiles() {
     subtitle: `${state.files.length} dossiers`,
     topbarRight,
     subheaderHtml,
-    centerHtml,
-    rightHtml
+    centerHtml
   });
 }
 
@@ -1036,19 +1034,18 @@ function renderFinance() {
   const balance = revenue - expenses;
   const topbarRight = `<button class="btn" id="exportFinanceCsv">CSV</button><button class="btn" id="exportFinanceXml">XML</button>`;
   const centerHtml = `<div class="grid-3"><article class="metric-card"><span class="eyebrow">Revenus</span><strong>${money(revenue)}</strong><p>Total des entrées suivies.</p></article><article class="metric-card"><span class="eyebrow">Dépenses</span><strong>${money(expenses)}</strong><p>Total des sorties prévues ou payées.</p></article><article class="metric-card"><span class="eyebrow">Solde</span><strong>${money(balance)}</strong><p>Budget disponible estimé.</p></article></div>
-    <article class="studio-panel section"><h2>Transactions</h2><form id="transactionForm" class="studio-form compact-form"><select class="select-input" name="type"><option value="revenue">Revenu</option><option value="expense">Dépense</option></select><input class="search-input" name="title" placeholder="Libellé" required><input class="search-input" name="category" placeholder="Catégorie" required><input class="search-input" name="amount" type="number" min="0" step="0.01" placeholder="Montant" required><input class="search-input" name="date" type="date" required><button class="btn primary">Ajouter</button></form><div class="transaction-list">${state.finance.transactions.map(transactionRow).join("") || `<div class="empty-state"><strong>Aucune transaction</strong></div>`}</div></article>
+    <div class="studio-grid section">
+      <article class="studio-panel"><h2>Transactions</h2><form id="transactionForm" class="studio-form compact-form"><select class="select-input" name="type"><option value="revenue">Revenu</option><option value="expense">Dépense</option></select><input class="search-input" name="title" placeholder="Libellé" required><input class="search-input" name="category" placeholder="Catégorie" required><input class="search-input" name="amount" type="number" min="0" step="0.01" placeholder="Montant" required><input class="search-input" name="date" type="date" required><button class="btn primary">Ajouter</button></form><div class="transaction-list">${state.finance.transactions.map(transactionRow).join("") || `<div class="empty-state"><strong>Aucune transaction</strong></div>`}</div></article>
+      <article class="studio-panel"><h2>Objectifs</h2><form id="goalForm" class="studio-form"><label>Objectif<input class="search-input" name="title" required></label><label>Cible<input class="search-input" name="target" type="number" min="0" step="0.01" required></label><label>Actuel<input class="search-input" name="current" type="number" min="0" step="0.01" value="0"></label><label>Échéance<input class="search-input" name="deadline" type="date"></label><button class="btn primary">Ajouter objectif</button></form><div class="goal-list">${state.finance.goals.map(goalCard).join("") || `<p class="meta">Ajoute un objectif pour suivre sa progression.</p>`}</div></article>
+    </div>
     <pre class="code-box export-box" id="financeOutput" hidden></pre>`;
-  const rightHtml = `<div class="vd-right-head"><h2>Objectifs</h2></div>
-    <form id="goalForm" class="studio-form"><label>Objectif<input class="search-input" name="title" required></label><label>Cible<input class="search-input" name="target" type="number" min="0" step="0.01" required></label><label>Actuel<input class="search-input" name="current" type="number" min="0" step="0.01" value="0"></label><label>Échéance<input class="search-input" name="deadline" type="date"></label><button class="btn primary">Ajouter objectif</button></form>
-    <div class="goal-list">${state.finance.goals.map(goalCard).join("") || `<p class="meta">Ajoute un objectif pour suivre sa progression.</p>`}</div>`;
   return renderShell({
     active: "finance",
     icon: "ti-wallet",
     title: "Suivi finance léger.",
     subtitle: `Solde ${money(balance)}`,
     topbarRight,
-    centerHtml,
-    rightHtml
+    centerHtml
   });
 }
 
@@ -1113,8 +1110,7 @@ function renderAbout() {
     icon: "ti-info-circle",
     title: "Bibliothèque personnelle, modulaire et évolutive.",
     subtitle: "Architecture Lumen",
-    centerHtml,
-    rightHtml: renderShortcutsPanel()
+    centerHtml
   });
 }
 

@@ -410,8 +410,8 @@ function mergeLocalAdditions() {
 
 function applyLibraryOverride() {
   const override = readJson(APP.storage.library, null);
-  if (!override?.categories?.length || !Array.isArray(override.playlists)) return;
-  state.categories = override.categories.map((cat) => ({
+  if (!Array.isArray(override?.playlists)) return;
+  state.categories = (override.categories || []).map((cat) => ({
     id: slug(cat.id || cat.title),
     title: cat.title || "Catégorie",
     icon: cat.icon || cat.title?.slice(0, 2) || "LM",
@@ -419,7 +419,6 @@ function applyLibraryOverride() {
     description: cat.description || ""
   }));
   state.playlists = override.playlists
-    .filter((list) => state.categories.some((cat) => cat.id === list.category))
     .map((list) => {
       const playlistId = slug(list.id || list.title);
       return {
@@ -745,8 +744,9 @@ function playlistCard(list) {
   const image = first?.youtubeId ? thumb(first.youtubeId) : "";
   const search = `${list.title} ${list.description} ${categoryName(list.category)} ${list.tags.join(" ")}`.toLowerCase();
   const href = first ? `videos.html?playlist=${encodeURIComponent(list.id)}&video=${encodeURIComponent(first.id)}` : "playlists.html?admin=imports";
+  const catBadge = list.category ? `<span class="badge">${escapeHtml(categoryName(list.category))}</span>` : "";
   const imported = list.imported ? `<span class="tag">Importées</span>` : "";
-  return `<article class="playlist-card" data-playlist-card data-category="${list.category}" data-search="${escapeAttr(search)}"><div class="playlist-thumb" style="background-image:linear-gradient(180deg, transparent, rgba(7,10,18,.86)), url('${image}')"></div><div class="card-meta"><span class="badge">${categoryName(list.category)}</span><span class="level">${escapeHtml(list.level)}</span><span class="badge">${list.videos.length} vidéos</span>${imported}</div><h3>${escapeHtml(list.title)}</h3><p>${escapeHtml(list.description)}</p><div class="chip-row">${list.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div><a class="btn primary" href="${href}">Explorer</a></article>`;
+  return `<article class="playlist-card" data-playlist-card data-category="${escapeAttr(list.category || "")}" data-search="${escapeAttr(search)}"><div class="playlist-thumb" style="background-image:linear-gradient(180deg, transparent, rgba(7,10,18,.86)), url('${image}')"></div><div class="card-meta">${catBadge}<span class="level">${escapeHtml(list.level)}</span><span class="badge">${list.videos.length} vidéos</span>${imported}</div><h3>${escapeHtml(list.title)}</h3><p>${escapeHtml(list.description)}</p><div class="chip-row">${list.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div><a class="btn primary" href="${href}">Explorer</a></article>`;
 }
 
 function renderAdminDrawer() {
@@ -787,7 +787,7 @@ function renderAdminDrawer() {
           <form id="playlistAdminForm" class="studio-form">
             <label>Playlist<select class="select-input" name="id" id="playlistAdminSelect"><option value="__new__">Nouvelle playlist</option>${state.playlists.map((list) => `<option value="${list.id}" ${list.id === selectedPlaylistId ? "selected" : ""}>${escapeHtml(list.title)}</option>`).join("")}</select></label>
             <label>Titre<input class="search-input" name="title" required></label>
-            <label>Catégorie<select class="select-input" name="category">${state.categories.map((cat) => `<option value="${cat.id}">${escapeHtml(cat.title)}</option>`).join("")}</select></label>
+            <label>Étiquette (optionnelle)<select class="select-input" name="category"><option value="">— Sans étiquette —</option>${state.categories.map((cat) => `<option value="${cat.id}">${escapeHtml(cat.title)}</option>`).join("")}</select></label>
             <label>Niveau<input class="search-input" name="level" value="Débutant"></label>
             <label>Tags<input class="search-input" name="tags"></label>
             <label>Description<textarea name="description"></textarea></label>
@@ -842,21 +842,17 @@ function renderAdminDrawer() {
 }
 
 function renderLibraryHierarchy() {
+  const playlists = state.playlists.filter((list) => !list.imported);
   return `<section class="admin-section hierarchy-section">
-    <div class="admin-section-head"><h3>Hiérarchie</h3><span class="badge">Catégorie > Playlist > Vidéos</span></div>
+    <div class="admin-section-head"><h3>Playlists</h3><span class="badge">${playlists.length} playlists</span></div>
     <div class="hierarchy-tree">
-      ${state.categories.map((category) => {
-        const lists = playlistsByCategory(category.id);
-        return `<details class="hierarchy-category" open>
-          <summary><span><strong>${escapeHtml(category.title)}</strong><small>${lists.length} playlists · ${lists.reduce((total, list) => total + list.videos.length, 0)} vidéos</small></span><button class="mini-btn" type="button" data-admin-edit="category" data-id="${escapeAttr(category.id)}">Éditer</button></summary>
-          <div class="hierarchy-playlists">
-            ${lists.map((list) => `<details class="hierarchy-playlist">
-              <summary><span><strong>${escapeHtml(list.title)}</strong><small>${list.imported ? "Playlist importée" : "Playlist bibliothèque"} · ${list.videos.length} vidéos</small></span><button class="mini-btn" type="button" data-admin-edit="playlist" data-id="${escapeAttr(list.id)}">Éditer</button></summary>
-              <div class="hierarchy-videos">${list.videos.map((video) => `<div class="hierarchy-video"><span><strong>${escapeHtml(video.title)}</strong><small>${escapeHtml(video.youtubeId)} · ${escapeHtml(video.level || list.level || "À classer")}</small></span><span class="admin-row-actions"><a class="mini-btn" href="videos.html?playlist=${encodeURIComponent(list.id)}&video=${encodeURIComponent(video.id)}">Voir</a><button class="mini-btn" type="button" data-admin-edit="video" data-id="${escapeAttr(video.id)}" data-parent="${escapeAttr(list.id)}">Éditer</button></span></div>`).join("") || `<p class="meta">Aucune vidéo.</p>`}</div>
-            </details>`).join("") || `<p class="meta">Aucune playlist dans cette catégorie.</p>`}
-          </div>
+      ${playlists.map((list) => {
+        const catLabel = list.category ? ` · ${escapeHtml(categoryName(list.category))}` : "";
+        return `<details class="hierarchy-playlist">
+          <summary><span><strong>${escapeHtml(list.title)}</strong><small>${list.videos.length} vidéos${catLabel}</small></span><button class="mini-btn" type="button" data-admin-edit="playlist" data-id="${escapeAttr(list.id)}">Éditer</button></summary>
+          <div class="hierarchy-videos">${list.videos.map((video) => `<div class="hierarchy-video"><span><strong>${escapeHtml(video.title)}</strong><small>${escapeHtml(video.youtubeId)} · ${escapeHtml(video.level || list.level || "À classer")}</small></span><span class="admin-row-actions"><a class="mini-btn" href="videos.html?playlist=${encodeURIComponent(list.id)}&video=${encodeURIComponent(video.id)}">Voir</a><button class="mini-btn" type="button" data-admin-edit="video" data-id="${escapeAttr(video.id)}" data-parent="${escapeAttr(list.id)}">Éditer</button></span></div>`).join("") || `<p class="meta">Aucune vidéo.</p>`}</div>
         </details>`;
-      }).join("")}
+      }).join("") || `<p class="meta">Aucune playlist.</p>`}
     </div>
   </section>`;
 }
@@ -1291,14 +1287,13 @@ function bindCategoryAdmin() {
   document.querySelector("[data-admin-delete='category']")?.addEventListener("click", () => {
     const id = document.querySelector("#categoryAdminSelect")?.value;
     if (!id || id === "__new__") return;
-    if (state.categories.length <= 1) { alert("Il faut conserver au moins une catégorie."); return; }
     const categoryPlaylists = playlistsByCategory(id);
     if (categoryPlaylists.length) {
-      const confirmed = confirm(`Cette catégorie contient ${categoryPlaylists.length} playlist(s). Supprimer cette catégorie supprimera aussi ses playlists et vidéos. Continuer ?`);
+      const confirmed = confirm(`Cette étiquette est utilisée par ${categoryPlaylists.length} playlist(s). La supprimer retirera l'étiquette de ces playlists (les playlists et vidéos sont conservées). Continuer ?`);
       if (!confirmed) return;
     }
     state.categories = state.categories.filter((cat) => cat.id !== id);
-    state.playlists = state.playlists.filter((list) => list.category !== id);
+    state.playlists = state.playlists.map((list) => list.category === id ? { ...list, category: "" } : list);
     saveAdminSelection({ categoryId: state.categories[0]?.id || "", playlistId: state.playlists[0]?.id || "", videoId: "" });
     persistAdminChanges(true, true);
   });
@@ -1326,7 +1321,7 @@ function bindPlaylistAdmin() {
     const form = new FormData(event.currentTarget);
     const existingId = form.get("id");
     const title = clean(form.get("title"));
-    if (!title || !form.get("category")) return;
+    if (!title) return;
     const previous = state.playlists.find((list) => list.id === existingId);
     const next = {
       id: existingId === "__new__" ? uniqueAdminId(slug(title), state.playlists) : existingId,
@@ -1920,7 +1915,7 @@ function fillPlaylistForm(id) {
   const list = id && id !== "__new__" ? getPlaylist(id) : null;
   form.elements.id.value = list?.id || "__new__";
   form.elements.title.value = list?.title || "";
-  form.elements.category.value = list?.category || state.categories[0]?.id || "";
+  form.elements.category.value = list?.category || "";
   form.elements.level.value = list?.level || "Débutant";
   form.elements.tags.value = list?.tags?.join(", ") || "";
   form.elements.description.value = list?.description || "";

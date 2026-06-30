@@ -4,6 +4,7 @@ const APP = {
   resourcesUrl: "data/resources.xml",
   videoIntelligenceUrl: "data/video-intelligence.xml",
   financeUrl: "data/finance.xml",
+  filesUrl: "data/files.xml",
   storage: {
     additions: "lumen-v2-additions",
     library: "lumen-v2-library",
@@ -11,7 +12,8 @@ const APP = {
     favorites: "lumen-v2-favorites",
     active: "lumen-v2-active",
     workspace: "lumen-v2-workspace",
-    finance: "lumen-v2-finance"
+    finance: "lumen-v2-finance",
+    files: "lumen-v2-files"
   },
   legacyStorage: {
     additions: "visionhub-v2-additions",
@@ -20,7 +22,8 @@ const APP = {
     favorites: "visionhub-v2-favorites",
     active: "visionhub-v2-active",
     workspace: "visionhub-v2-workspace",
-    finance: "visionhub-v2-finance"
+    finance: "visionhub-v2-finance",
+    files: "visionhub-v2-files"
   }
 };
 
@@ -31,6 +34,7 @@ let state = {
   categories: [],
   playlists: [],
   files: [],
+  realFiles: [],
   importedVideos: [],
   videoIntelligence: {},
   finance: { transactions: [], goals: [] },
@@ -73,6 +77,8 @@ async function init() {
   await loadFinance();
   mergeLocalWorkspace();
   mergeLocalFinance();
+  await loadFilesManifest();
+  mergeLocalFiles();
   route();
 }
 
@@ -473,6 +479,33 @@ function mergeLocalFinance() {
   });
   additions.goals?.forEach((item) => {
     if (!state.finance.goals.some((goal) => goal.id === item.id)) state.finance.goals.push(item);
+  });
+}
+
+async function loadFilesManifest() {
+  const xmlText = await loadDataXml(APP.filesUrl);
+  if (!xmlText) return;
+  try {
+    const doc = new DOMParser().parseFromString(xmlText, "application/xml");
+    state.realFiles = [...doc.querySelectorAll("file")].map((node) => ({
+      id: node.getAttribute("id") || `f-${Date.now()}`,
+      title: node.getAttribute("title") || clean(node.textContent),
+      description: clean(node.textContent),
+      path: node.getAttribute("path") || "",
+      type: node.getAttribute("type") || "other",
+      size: node.getAttribute("size") || "",
+      date: node.getAttribute("date") || "",
+      local: false
+    }));
+  } catch (error) {
+    console.warn("data/files.xml invalide.", error);
+  }
+}
+
+function mergeLocalFiles() {
+  const additions = readJson(APP.storage.files, []);
+  additions.forEach((file) => {
+    if (!state.realFiles.some((f) => f.id === file.id)) state.realFiles.push(file);
   });
 }
 
@@ -1043,7 +1076,8 @@ function renderFiles() {
       <select class="select-input" id="fileTypeFilter"><option value="all">Tous les types</option><option value="video">Vidéos</option><option value="lien">Liens</option><option value="document">Documents</option><option value="note">Notes</option><option value="local">Fichiers locaux</option></select>
       <div class="filter-tabs" id="fileView"><button class="tab-btn active" data-view="grid">Grille</button><button class="tab-btn" data-view="list">Liste</button></div>
     </div></div>`;
-  const centerHtml = `<div class="file-grid" id="fileGrid">${state.files.map(folderCard).join("")}</div><div id="fileEmpty"></div><pre class="code-box export-box" id="workspaceOutput" hidden></pre>
+  const centerHtml = `${renderRealFilesSection()}
+    <div class="file-grid" id="fileGrid">${state.files.map(folderCard).join("")}</div><div id="fileEmpty"></div><pre class="code-box export-box" id="workspaceOutput" hidden></pre>
     <div class="studio-grid section">
       <article class="studio-panel"><h3>Créer un dossier</h3><form id="folderForm" class="studio-form"><label>Nom<input class="search-input" name="title" required></label><label>Description<textarea name="description"></textarea></label><label>Tags<input class="search-input" name="tags" placeholder="Clients, Docs, Priorité"></label><button class="btn primary">Créer dossier</button></form></article>
       <article class="studio-panel"><h3>Ajouter un item</h3><form id="fileForm" class="studio-form"><label>Dans<select class="select-input" name="folderId">${state.files.map((folder) => `<option value="${folder.id}">${escapeHtml(folder.title)}</option>`).join("")}</select></label><label>Titre<input class="search-input" name="title" required></label><label>Type<select class="select-input" name="type"><option>note</option><option>lien</option><option>document</option><option>table</option></select></label><label>URL<input class="search-input" name="url" placeholder="https://..."></label><label>Statut<input class="search-input" name="status" value="Actif"></label><label>Tags<input class="search-input" name="tags"></label><button class="btn primary">Ajouter item</button></form></article>
@@ -1052,11 +1086,61 @@ function renderFiles() {
     active: "files",
     icon: "ti-folder",
     title: "Organisation des fichiers.",
-    subtitle: `${state.files.length} dossiers`,
+    subtitle: `${state.realFiles.length} fichiers · ${state.files.length} dossiers`,
     topbarRight,
     subheaderHtml,
     centerHtml
   });
+}
+
+function renderRealFilesSection() {
+  const types = ["all", "pdf", "image", "doc", "video", "zip", "other"];
+  const typeLabels = { all: "Tous", pdf: "PDF", image: "Images", doc: "Documents", video: "Vidéos", zip: "Archives", other: "Autres" };
+  const filterHtml = types.map((t) => `<button class="tab-btn ${t === "all" ? "active" : ""}" data-rf-type="${t}">${typeLabels[t]}</button>`).join("");
+  const listHtml = state.realFiles.map(realFileRow).join("") || `<div class="empty-state rf-empty"><i class="ti ti-file-off"></i><p>Aucun fichier. Déposez un fichier ci-dessous ou ajoutez-en un dans <code>data/files/</code>.</p></div>`;
+  return `<section class="rf-section">
+    <div class="rf-head">
+      <div><p class="kicker">Fichiers locaux</p><h2>Vrais fichiers <span class="badge">${state.realFiles.length}</span></h2></div>
+      <div class="filter-tabs" id="rfTypeFilter">${filterHtml}</div>
+    </div>
+    <div class="rf-list" id="rfList">${listHtml}</div>
+    <div class="rf-dropzone" id="rfDropzone">
+      <i class="ti ti-upload"></i>
+      <span>Déposez un fichier ici pour l'enregistrer dans le manifest</span>
+      <small>Le fichier doit être copié dans <code>data/files/</code> et commité pour être accessible.</small>
+    </div>
+  </section>`;
+}
+
+function realFileRow(file) {
+  const icon = realFileIcon(file.type);
+  const localBadge = file.local ? `<span class="tag warn">À commiter</span>` : "";
+  const openBtn = file.path ? `<a class="mini-btn" href="${escapeAttr(file.path)}" target="_blank" rel="noreferrer"><i class="ti ti-eye"></i> Ouvrir</a>` : "";
+  const dlBtn = file.path ? `<a class="mini-btn" href="${escapeAttr(file.path)}" download><i class="ti ti-download"></i> Télécharger</a>` : "";
+  const meta = [file.size, file.date].filter(Boolean).join(" · ");
+  return `<div class="rf-row" data-rf-row data-rf-type="${escapeAttr(file.type)}" data-rf-id="${escapeAttr(file.id)}">
+    <span class="rf-icon rf-${escapeAttr(file.type)}"><i class="ti ${icon}"></i></span>
+    <span class="rf-info">
+      <strong>${escapeHtml(file.title)}</strong>
+      ${meta ? `<small>${escapeHtml(meta)}</small>` : ""}
+      ${localBadge}
+    </span>
+    <span class="rf-actions">${openBtn}${dlBtn}</span>
+  </div>`;
+}
+
+function realFileIcon(type) {
+  const icons = { pdf: "ti-file-type-pdf", image: "ti-photo", doc: "ti-file-text", video: "ti-video", zip: "ti-file-zip" };
+  return icons[type] || "ti-file";
+}
+
+function realFileTypeFromMime(mime, name) {
+  if (mime.startsWith("image/")) return "image";
+  if (mime === "application/pdf" || name.endsWith(".pdf")) return "pdf";
+  if (mime.startsWith("video/")) return "video";
+  if (mime.match(/zip|rar|7z|tar|gz/)) return "zip";
+  if (mime.match(/word|document|text/) || name.match(/\.(doc|docx|txt|md|odt)$/)) return "doc";
+  return "other";
 }
 
 function renderFinance() {
@@ -1828,6 +1912,60 @@ function bindFiles() {
   });
   document.querySelector("#exportWorkspace")?.addEventListener("click", () => showExport("#workspaceOutput", exportWorkspaceXml()));
   bindExportActions();
+
+  document.querySelector("#rfTypeFilter")?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-rf-type]");
+    if (!btn) return;
+    document.querySelectorAll("#rfTypeFilter .tab-btn").forEach((b) => b.classList.toggle("active", b === btn));
+    const type = btn.dataset.rfType;
+    document.querySelectorAll("[data-rf-row]").forEach((row) => { row.hidden = type !== "all" && row.dataset.rfType !== type; });
+  });
+
+  const dropzone = document.querySelector("#rfDropzone");
+  if (dropzone) {
+    dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("drag-over"); });
+    dropzone.addEventListener("dragleave", () => dropzone.classList.remove("drag-over"));
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("drag-over");
+      const files = [...(e.dataTransfer?.files || [])];
+      if (!files.length) return;
+      const additions = readJson(APP.storage.files, []);
+      let added = 0;
+      files.forEach((file) => {
+        const id = slug(file.name) + "-" + Date.now();
+        if (state.realFiles.some((f) => f.title === file.name)) return;
+        const type = realFileTypeFromMime(file.type, file.name);
+        const entry = { id, title: file.name, description: "", path: `data/files/${file.name}`, type, size: formatFileSize(file.size), date: new Date().toISOString().slice(0, 10), local: true };
+        additions.push(entry);
+        state.realFiles.push(entry);
+        added++;
+      });
+      saveJson(APP.storage.files, additions);
+      if (added > 0) {
+        document.querySelector("#rfList").innerHTML = state.realFiles.map(realFileRow).join("");
+        showFilesToast(`${added} fichier(s) enregistré(s). Copiez-les dans data/files/ et committez.`, "warn");
+      }
+    });
+  }
+}
+
+function showFilesToast(msg, type = "success") {
+  let toast = document.querySelector("#filesToast");
+  if (!toast) {
+    toast = Object.assign(document.createElement("div"), { id: "filesToast" });
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.className = `vd-toast ${type} show`;
+  clearTimeout(toast._tt);
+  toast._tt = setTimeout(() => toast.classList.remove("show"), 3500);
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function filterFiles() {

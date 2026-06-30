@@ -1049,6 +1049,41 @@ body[data-page="home"] .vd-scroll { padding: 0; }
 .vd-toast.success i { color: var(--green); }
 .vd-toast.warn i { color: var(--amber); }
 
+/* Real files section (V2-4) */
+.rf-section { margin-bottom: 32px; }
+.rf-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 14px; }
+.rf-head h2 { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.rf-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.rf-row {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: 10px; padding: 10px 14px;
+  transition: border-color .15s;
+}
+.rf-row:hover { border-color: var(--line-2); }
+.rf-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; background: var(--surface-2); }
+.rf-pdf { color: #e05252; } .rf-image { color: var(--cyan); } .rf-doc { color: #6e92f7; } .rf-video { color: var(--accent); } .rf-zip { color: var(--amber); } .rf-other { color: var(--text-3); }
+.rf-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rf-info strong { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rf-info small { font-size: 11px; color: var(--text-3); }
+.rf-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.rf-actions .mini-btn { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 4px 8px; }
+.rf-dropzone {
+  border: 2px dashed var(--line-2); border-radius: 12px;
+  padding: 28px 20px; text-align: center;
+  color: var(--text-3); font-size: 13px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  transition: border-color .2s, background .2s; cursor: default;
+}
+.rf-dropzone i { font-size: 28px; color: var(--accent); margin-bottom: 4px; }
+.rf-dropzone small { font-size: 11px; }
+.rf-dropzone small code { color: var(--text-2); }
+.rf-dropzone.drag-over { border-color: var(--accent); background: rgba(110,86,247,.06); color: var(--text); }
+.rf-empty { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 24px; color: var(--text-3); font-size: 13px; }
+.rf-empty i { font-size: 32px; }
+.rf-empty code { color: var(--text-2); font-size: 12px; }
+.tag.warn { background: rgba(234,179,8,.12); color: var(--amber); border: 1px solid rgba(234,179,8,.25); }
+
 @media (max-width: 1100px) {
   .vd-body.has-right { grid-template-columns: 1fr 260px; }
 }

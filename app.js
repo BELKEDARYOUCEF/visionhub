@@ -684,11 +684,46 @@ function renderPlaylistsList() {
 }
 
 function renderVideoAdminBox() {
+  const categoryOptions = state.categories.map((cat) =>
+    `<option value="${escapeAttr(cat.id)}">${escapeHtml(cat.title)}</option>`
+  ).join("");
+  const playlistOptions = regularPlaylists().map((list) =>
+    `<option value="${escapeAttr(list.id)}">${escapeHtml(list.title)}</option>`
+  ).join("");
   return `<div class="vd-admin-box">
-    <div class="vd-admin-box-title"><i class="ti ti-adjustments"></i> Administration</div>
-    <p>Modifications locales uniquement. Exportez un nouveau <strong>library.xml</strong> pour le dépôt.</p>
+    <div class="vd-admin-box-title"><i class="ti ti-bolt"></i> Ajout rapide</div>
+
+    <div class="qa-section">
+      <div class="qa-label"><i class="ti ti-stack-2"></i> Nouvelle playlist</div>
+      <form id="quickPlaylistForm" autocomplete="off">
+        <div class="quick-row">
+          <input class="quick-input" name="name" placeholder="Nom de la playlist…" required>
+          <button class="vd-adm-btn primary qa-btn" type="submit"><i class="ti ti-plus"></i></button>
+        </div>
+        <select class="select-input quick-select" name="category">
+          <option value="">Catégorie (optionnel)</option>
+          ${categoryOptions}
+        </select>
+      </form>
+    </div>
+
+    <div class="qa-section">
+      <div class="qa-label"><i class="ti ti-brand-youtube"></i> Ajouter une vidéo</div>
+      <form id="quickVideoForm" autocomplete="off">
+        <div class="quick-row">
+          <input class="quick-input" name="url" placeholder="Coller un lien YouTube…" required>
+          <button class="vd-adm-btn primary qa-btn" type="submit" id="quickVideoBtn"><i class="ti ti-plus"></i></button>
+        </div>
+        <select class="select-input quick-select" name="playlist">
+          <option value="">Choisir une playlist…</option>
+          ${playlistOptions}
+        </select>
+      </form>
+    </div>
+
+    <div class="qa-sep"></div>
     <div class="vd-admin-btns">
-      <button class="vd-adm-btn primary" id="vdOpenAdmin2"><i class="ti ti-pencil"></i> Organiser la bibliothèque</button>
+      <button class="vd-adm-btn" id="vdOpenAdmin2"><i class="ti ti-pencil"></i> Organiser la bibliothèque</button>
       <button class="vd-adm-btn" id="vdExportXml"><i class="ti ti-file-export"></i> Exporter XML</button>
       <button class="vd-adm-btn" id="vdCopyXml"><i class="ti ti-copy"></i> Copier XML</button>
     </div>
@@ -1591,6 +1626,42 @@ function bindVideoDashboard() {
       }
       showVdToast(result.message, result.added ? "success" : "warn");
     });
+  });
+
+  document.querySelector("#quickPlaylistForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const name = clean(form.get("name"));
+    const category = form.get("category") || "";
+    if (!name) return;
+    const id = uniqueAdminId(slug(name), state.playlists);
+    const duplicate = state.playlists.find((p) => slug(p.title) === slug(name));
+    if (duplicate) { showVdToast(`La playlist « ${duplicate.title} » existe déjà`, "warn"); return; }
+    state.playlists.push({ id, title: name, description: "", category, level: "Débutant", tags: [], videos: [] });
+    saveLibraryOverride();
+    e.currentTarget.reset();
+    showVdToast(`Playlist « ${name} » créée ✓`, "success");
+  });
+
+  document.querySelector("#quickVideoForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const url = (form.get("url") || "").trim();
+    const playlistId = form.get("playlist");
+    const youtubeId = normalizeYoutubeId(url);
+    if (!youtubeId) { showVdToast("Lien YouTube invalide", "warn"); return; }
+    if (!playlistId) { showVdToast("Choisir une playlist d'abord", "warn"); return; }
+    const btn = document.querySelector("#quickVideoBtn");
+    if (btn) { btn.disabled = true; btn.innerHTML = `<i class="ti ti-loader"></i>`; }
+    let title = `Vidéo YouTube ${youtubeId}`;
+    try {
+      const res = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${youtubeId}&format=json`);
+      if (res.ok) { const data = await res.json(); if (data.title) title = data.title; }
+    } catch (_) {}
+    if (btn) { btn.disabled = false; btn.innerHTML = `<i class="ti ti-plus"></i>`; }
+    const result = addVideoToPlaylist({ youtubeId, title, id: uniqueAdminId(slug(title), allVideos()) }, playlistId);
+    showVdToast(result.message, result.added ? "success" : "warn");
+    if (result.added) e.currentTarget.reset();
   });
 
   document.querySelector("#vdExportXml")?.addEventListener("click", () => {

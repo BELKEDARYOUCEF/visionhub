@@ -1016,6 +1016,11 @@ body[data-page="home"] .vd-scroll { padding: 0; }
 .quick-input::placeholder { color: var(--text-3); }
 .quick-select { width: 100%; font-size: 11px; padding: 6px 8px; }
 .qa-sep { border: none; border-top: 1px solid var(--line); margin: 12px 0; }
+.quick-textarea { width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; color: var(--text); font-size: 11px; font-family: monospace; resize: vertical; box-sizing: border-box; }
+.quick-textarea:focus { border-color: var(--accent); outline: none; }
+.quick-textarea::placeholder { color: var(--text-3); font-family: inherit; }
+.qa-help-link { margin-left: auto; color: var(--text-3); font-size: 13px; display: flex; align-items: center; }
+.qa-help-link:hover { color: var(--accent); }
 .vd-adm-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   background: var(--bg); border: 1px solid var(--line); border-radius: 8px;

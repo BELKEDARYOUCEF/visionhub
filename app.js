@@ -754,6 +754,20 @@ function renderVideoAdminBox() {
       </form>
     </div>
 
+    <div class="qa-section">
+      <div class="qa-label"><i class="ti ti-list-check"></i> Import playlist <a class="qa-help-link" href="tools/import-playlist.md" target="_blank" title="Guide yt-dlp"><i class="ti ti-help-circle"></i></a></div>
+      <form id="importPlaylistForm" autocomplete="off">
+        <textarea class="quick-textarea" name="text" id="importPlaylistText" rows="4" placeholder="Coller le texte du script :\nTitre vidéo 1 | youtubeId1\nTitre vidéo 2 | youtubeId2\n…"></textarea>
+        <div class="quick-row" style="margin-top:5px">
+          <select class="select-input quick-select" name="playlist" style="flex:1">
+            <option value="">Choisir une playlist…</option>
+            ${playlistOptions}
+          </select>
+          <button class="vd-adm-btn primary qa-btn" type="submit" id="importPlaylistBtn" title="Importer"><i class="ti ti-file-import"></i></button>
+        </div>
+      </form>
+    </div>
+
     <div class="qa-sep"></div>
     <div class="vd-admin-btns">
       <button class="vd-adm-btn" id="vdOpenAdmin2"><i class="ti ti-pencil"></i> Organiser la bibliothèque</button>
@@ -1746,6 +1760,32 @@ function bindVideoDashboard() {
     const result = addVideoToPlaylist({ youtubeId, title, id: uniqueAdminId(slug(title), allVideos()) }, playlistId);
     showVdToast(result.message, result.added ? "success" : "warn");
     if (result.added) e.currentTarget.reset();
+  });
+
+  document.querySelector("#importPlaylistForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const text = (form.get("text") || "").trim();
+    const playlistId = form.get("playlist");
+    if (!text) { showVdToast("Colle le texte du script yt-dlp d'abord", "warn"); return; }
+    if (!playlistId) { showVdToast("Choisir une playlist cible", "warn"); return; }
+    const lines = text.split("\n").filter((l) => l.includes(" | ") && !l.startsWith("#"));
+    if (!lines.length) { showVdToast("Aucune ligne valide (format attendu : titre | youtubeId)", "warn"); return; }
+    let added = 0, skipped = 0;
+    lines.forEach((line) => {
+      const idx = line.lastIndexOf(" | ");
+      if (idx < 0) return;
+      const title = line.slice(0, idx).trim();
+      const youtubeId = line.slice(idx + 3).trim();
+      if (!title || !youtubeId || youtubeId.length < 5) return;
+      const result = addVideoToPlaylist({ youtubeId, title, id: uniqueAdminId(slug(title), allVideos()) }, playlistId);
+      result.added ? added++ : skipped++;
+    });
+    if (added > 0) e.currentTarget.reset();
+    const msg = added > 0
+      ? `${added} vidéo(s) ajoutée(s)${skipped > 0 ? ` · ${skipped} doublon(s) ignoré(s)` : ""} ✓`
+      : `Toutes les vidéos sont déjà dans la playlist (${skipped} doublon(s))`;
+    showVdToast(msg, added > 0 ? "success" : "warn");
   });
 
   document.querySelector("#vdExportXml")?.addEventListener("click", () => {

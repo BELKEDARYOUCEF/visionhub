@@ -4,38 +4,70 @@
 > **Règles inchangées :** une seule tâche à la fois ; tester ; commit sur une branche dédiée (préfixe `lumen/v2-…`) ; ne pas merger sur `main` sans validation ; rester statique GitHub Pages ; fonctionner hors-ligne ; ne jamais supprimer les données XML ; déduplication par `youtubeId` ; localStorage + export XML.
 > Avant de commencer, fais un résumé en 5 lignes de ce que tu as compris et attends la validation. Ne code rien encore.
 
+**✅ TOUTES LES TÂCHES V2-1 À V2-7 SONT COMPLÉTÉES ET MERGÉES DANS MAIN (2026-07-01)**
+
 ---
 
 ## Contexte des changements demandés
 
 L'utilisateur a testé le travail A1–A5 en local. Le design plaît globalement, mais plusieurs points doivent changer. Les deux plus importants :
 
-1. **Cohérence des pages.** Aujourd'hui, la page Vidéos a une mise en page « 3 colonnes » (sidebar gauche + grille centrale + barre playlists droite), mais les autres pages (Accueil, Playlists, Fichiers, Finance, À propos) ont des mises en page différentes. L'utilisateur veut **la même architecture sur toutes les pages** : la même coquille (sidebar + zone centrale + barre droite dynamique), seul le contenu central change d'une page à l'autre. Il ne veut pas que chaque page « réinvente » sa structure.
+1. **Navigation horizontale en haut, conservée partout — POINT IMPORTANT.** L'utilisateur veut **garder la barre de navigation horizontale en haut** (Accueil, Playlists, Vidéos, Fichiers, Finance, À propos) sur **toutes** les pages. Il **NE VEUT PAS** que la page Vidéos (ou une autre) transforme cette navigation en **sidebar verticale à gauche**. La navigation doit rester **en haut, horizontale**, identique sur toutes les pages. Ce qui le dérange aujourd'hui, c'est que la page Vidéos a remplacé la nav du haut par une colonne de navigation verticale à gauche — il faut revenir à la nav horizontale en haut.
+
+   En revanche, **ajouter une colonne à droite pour les playlists** (la barre dynamique de glisser-déposer) est **bienvenu**. La structure cible est donc :
+   ```
+   ┌─────────────────────────────────────────────┐
+   │   NAVIGATION HORIZONTALE EN HAUT (partout)   │
+   ├──────────────────────────────┬──────────────┤
+   │      ZONE CENTRALE           │   COLONNE     │
+   │      (contenu de la page)    │   PLAYLISTS   │
+   │                              │   (à droite)  │
+   └──────────────────────────────┴──────────────┘
+   ```
+   Et **PAS** ceci (à corriger) : `[ sidebar nav verticale gauche | centre | playlists droite ]`.
+
+   La colonne playlists à droite apparaît sur les pages où elle est utile (Vidéos, Playlists) ; les autres pages peuvent l'omettre ou afficher un contenu pertinent. Mais la **nav horizontale du haut reste sur toutes les pages**.
 
 2. **La playlist devient l'élément central, la catégorie devient secondaire.** Actuellement le code impose partout la hiérarchie `Catégorie > Playlist > Vidéos` (voir `renderAdminDrawer`, `renderHierarchy`, les sélecteurs de catégorie obligatoires, les filtres). L'utilisateur n'aime pas devoir choisir une catégorie en premier. Il veut que **les playlists soient au premier plan**, et que **la catégorie devienne une simple étiquette/description optionnelle** sur la playlist — pas un niveau de regroupement obligatoire.
 
 ---
 
-## TÂCHE V2-1 — Coquille de page partagée (même architecture partout)
+## TÂCHE V2-1 ✅ — Coquille de page partagée (navigation horizontale en haut, partout)
 
-**But :** extraire la structure de la page Vidéos (sidebar gauche + main central + barre droite) en une **coquille réutilisable**, appliquée à toutes les pages.
+**But :** unifier la structure de toutes les pages autour d'une **navigation horizontale en haut**, identique partout, avec une **colonne playlists à droite** sur les pages utiles. Supprimer la sidebar de navigation verticale à gauche que la page Vidéos a introduite.
+
+**Structure cible (sur toutes les pages) :**
+```
+┌─────────────────────────────────────────────┐
+│   BARRE DE NAV HORIZONTALE EN HAUT (logo +   │
+│   Accueil · Playlists · Vidéos · Fichiers ·  │
+│   Finance · À propos)                        │
+├──────────────────────────────┬──────────────┤
+│      ZONE CENTRALE           │   COLONNE     │
+│      (contenu de la page)    │   PLAYLISTS   │
+│                              │   (si utile)  │
+└──────────────────────────────┴──────────────┘
+```
 
 **À faire :**
-- Créer une fonction unique (ex. `renderShell({active, title, subtitle, centerHtml, rightHtml})`) qui produit : la `aside.vd-side` (navigation gauche, identique partout, avec le logo), la `main.vd-main` (barre de titre + contenu central injecté), et la `aside.vd-right` (barre droite).
-- Réécrire `renderHome`, `renderVideosPage`, `renderPlaylistsPage`, `renderFilesPage`, `renderFinancePage`, `renderAboutPage` pour qu'elles **utilisent toutes cette coquille** et ne fournissent que leur contenu central + le contenu de la barre droite.
-- La **barre de droite** est dynamique selon la page :
-  - Sur Vidéos et Playlists : la liste des playlists avec glisser-déposer (déjà existant sur Vidéos — le généraliser).
-  - Sur les autres pages : un contenu pertinent (raccourcis, actions) ou la même barre playlists si utile.
-- Le **logo Lumen** (fichier `brand/lumen-logo-glass.svg` ou `lumen-icon-glass.svg`) doit apparaître dans la sidebar de **toutes** les pages, et le favicon dans toutes les pages. Remplacer l'icône `ti-sparkles` actuelle par le vrai logo.
-- La page d'accueil garde son hero animé, mais à l'intérieur de la coquille (ou en pleine largeur si plus naturel pour le hero — à décider, mais la navigation et le logo doivent rester cohérents).
+- Créer une coquille partagée (ex. `renderShell({active, title, subtitle, centerHtml, rightHtml})`) qui produit :
+  - **une barre de navigation HORIZONTALE en haut** (`<header>` / `<nav>`), identique sur toutes les pages, contenant le **logo Lumen** à gauche et les liens de navigation en ligne (Accueil, Playlists, Vidéos, Fichiers, Finance, À propos) ;
+  - **une zone centrale** (le contenu propre à chaque page) ;
+  - **une colonne playlists à droite** optionnelle (passée via `rightHtml`), affichée sur Vidéos et Playlists, omise ailleurs.
+- **Supprimer la navigation verticale à gauche** (`aside.vd-side` avec les `vd-nav-item`) que la page Vidéos utilise actuellement. Les liens de navigation qui s'y trouvaient repassent dans la **barre horizontale du haut**. Le bloc « Périmètre » (Bibliothèque / Importées) devient un filtre dans la zone centrale, pas une colonne de gauche.
+- Réécrire `renderHome`, `renderVideosPage`, `renderPlaylistsPage`, `renderFilesPage`, `renderFinancePage`, `renderAboutPage` pour qu'elles **utilisent toutes cette coquille** : elles ne fournissent que leur contenu central + (optionnellement) le contenu de la colonne droite.
+- **La colonne playlists à droite** (liste des playlists + glisser-déposer, déjà présente sur Vidéos) est conservée et réutilisée sur Vidéos et Playlists.
+- Le **logo Lumen** (`brand/lumen-logo-glass.svg` ou `lumen-icon-glass.svg`) apparaît dans la barre du haut sur **toutes** les pages, et le favicon (`lumen-icon-glass.svg`) sur toutes les pages.
+- La page d'accueil garde son hero animé sous la barre de navigation horizontale.
+- Garder le responsive : sur mobile, la barre horizontale peut se condenser (menu compact), mais reste en haut — pas de bascule en sidebar gauche.
 
-**Tester :** naviguer entre toutes les pages → la sidebar, le logo et la barre droite restent identiques ; seule la zone centrale change. Aucune page ne « casse » sa structure.
+**Tester :** naviguer entre toutes les pages → la **barre de navigation horizontale en haut reste identique partout**, avec le logo ; aucune page n'affiche de navigation verticale à gauche ; la colonne playlists apparaît à droite sur Vidéos et Playlists ; seule la zone centrale change d'une page à l'autre.
 
-**Commit :** `Lumen v2: coquille de page partagée + logo sur toutes les pages`
+**Commit :** `Lumen v2: nav horizontale en haut partout + colonne playlists à droite + logo`
 
 ---
 
-## TÂCHE V2-2 — Playlist au centre, catégorie en étiquette
+## TÂCHE V2-2 ✅ — Playlist au centre, catégorie en étiquette
 
 **But :** inverser la hiérarchie dans l'expérience : la playlist devient l'unité principale ; la catégorie devient une étiquette optionnelle.
 
@@ -52,7 +84,7 @@ L'utilisateur a testé le travail A1–A5 en local. Le design plaît globalement
 
 ---
 
-## TÂCHE V2-3 — Administration plus rapide et dynamique
+## TÂCHE V2-3 ✅ — Administration plus rapide et dynamique
 
 **But :** rendre l'ajout de catégories/playlists/vidéos beaucoup plus fluide. L'utilisateur trouve l'admin actuelle peu optimale.
 
@@ -69,7 +101,7 @@ L'utilisateur a testé le travail A1–A5 en local. Le design plaît globalement
 
 ---
 
-## TÂCHE V2-4 — Page Fichiers repensée (vrais fichiers)
+## TÂCHE V2-4 ✅ — Page Fichiers repensée (vrais fichiers)
 
 **But :** la page Fichiers ne doit plus afficher seulement des noms/emplacements, mais permettre de **garder de vrais fichiers**.
 
@@ -89,7 +121,7 @@ L'utilisateur a testé le travail A1–A5 en local. Le design plaît globalement
 
 ---
 
-## TÂCHE V2-5 — Import de playlist YouTube (lien → vidéos en XML)
+## TÂCHE V2-5 ✅ — Import de playlist YouTube (lien → vidéos en XML)
 
 **But :** coller le lien d'une playlist YouTube et générer automatiquement les entrées XML (titre + youtubeId + description) dans la bibliothèque.
 
@@ -113,7 +145,7 @@ L'utilisateur a testé le travail A1–A5 en local. Le design plaît globalement
 
 ---
 
-## TÂCHE V2-6 — Page « À propos » transformée en Tableau de bord / Réglages
+## TÂCHE V2-6 ✅ — Page « À propos » transformée en Tableau de bord / Réglages
 
 **But :** l'utilisateur n'a pas besoin d'une page de présentation (l'app est privée). Transformer « À propos » en page utile.
 
@@ -125,7 +157,7 @@ L'utilisateur a testé le travail A1–A5 en local. Le design plaît globalement
 
 ---
 
-## TÂCHE V2-7 — Habillage visuel (logo, images, finitions)
+## TÂCHE V2-7 ✅ — Habillage visuel (logo, images, finitions)
 
 **But :** rendre l'ensemble plus beau et fini : vrai logo partout, vraies vignettes, moins de « carrés colorés ».
 
@@ -145,12 +177,20 @@ L'utilisateur a testé le travail A1–A5 en local. Le design plaît globalement
 
 | # | Tâche | Pourquoi en premier |
 |---|---|---|
-| V2-1 | Coquille partagée | Base de cohérence, tout en dépend |
-| V2-2 | Playlist au centre | Changement structurel majeur |
-| V2-3 | Admin rapide | Confort quotidien |
-| V2-4 | Page Fichiers | Fonctionnalité manquante |
-| V2-5 | Import playlist | Grosse valeur ajoutée |
-| V2-6 | Dashboard/Réglages | Nettoyage |
-| V2-7 | Habillage visuel | Finition |
+| V2-1 ✅ | Nav horizontale en haut partout | Base de cohérence, tout en dépend |
+| V2-2 ✅ | Playlist au centre | Changement structurel majeur |
+| V2-3 ✅ | Admin rapide | Confort quotidien |
+| V2-4 ✅ | Page Fichiers | Fonctionnalité manquante |
+| V2-5 ✅ | Import playlist | Grosse valeur ajoutée |
+| V2-6 ✅ | Dashboard/Réglages | Nettoyage |
+| V2-7 ✅ | Habillage visuel | Finition |
 
 **Rappel : une tâche à la fois. Tester. Commit. Rapport. Stop.**
+
+---
+
+## Hors-tâches effectuées (2026-07-01)
+
+- **Import de 142 liens YouTube** depuis `liens_youtube_pas_encore_dans_visionhub.md` → 11 nouvelles playlists dans `data/library.xml` (ethical hacking, bash, python, CS50, Windows/PC, trading, e-commerce, self-dev, web dev, vidéos diverses, playlists YT à importer).
+- **PR #1 mergée** dans `main` sur GitHub.
+- Fichier source supprimé ; `liens_youtube_deja_dans_visionhub.md` mis à jour avec les 142 entrées.

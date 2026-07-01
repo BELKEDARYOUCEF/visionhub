@@ -641,7 +641,7 @@ function renderShell({ active, icon = "ti-sparkles", title = "", subtitle = "", 
       ${navLink("playlists", "playlists.html", "ti-stack-2", "Playlists", playlists.length)}
       ${navLink("files", "files.html", "ti-folder", "Fichiers")}
       ${navLink("finance", "finance.html", "ti-wallet", "Finance")}
-      ${navLink("about", "about.html", "ti-info-circle", "À propos")}
+      ${navLink("about", "about.html", "ti-gauge", "Tableau de bord")}
     </nav>
     <div class="vd-topnav-end">
       <div class="vd-avatar">YB</div>
@@ -1202,43 +1202,73 @@ function goalCard(goal) {
 }
 
 function renderAbout() {
-  const techStack = [
-    "HTML + CSS + JavaScript vanilla",
-    "Données XML + localStorage",
-    "GitHub Pages (statique, sans serveur)",
-    "Supabase (cloud optionnel — Phase C)",
-    "Playwright (tests E2E)",
+  const libraryVideos = allVideos().filter((v) => !v.imported);
+  const importedVideos = allVideos().filter((v) => v.imported);
+  const playlists = regularPlaylists();
+  const balance = financeTotal("revenue") - financeTotal("expense");
+  const lsKeys = Object.values(APP.storage);
+  const lsSize = lsKeys.reduce((acc, key) => acc + (localStorage.getItem(key)?.length || 0), 0);
+
+  const stats = [
+    { icon: "ti-player-play", value: libraryVideos.length, label: "Vidéos", sub: `${playlists.length} playlists · ${state.categories.length} catégories`, cc: "pc1" },
+    { icon: "ti-download", value: importedVideos.length, label: "Importées", sub: `${importedStatusCounts().unorganized} non classées`, cc: "pc2" },
+    { icon: "ti-folder", value: state.realFiles.length, label: "Fichiers", sub: `${state.files.length} dossiers de notes`, cc: "pc3" },
+    { icon: "ti-wallet", value: money(balance), label: "Solde", sub: `${state.finance.transactions.length} transactions`, cc: "pc4" },
   ];
-  const dataSources = [
-    ["data/library.xml", "vidéos & playlists"],
-    ["data/resources.xml", "vidéos importées"],
-    ["data/workspace.xml", "fichiers & notes"],
-    ["data/finance.xml", "transactions"],
-    ["localStorage", "modifications locales"],
-  ];
-  const rules = [
-    "Toujours fonctionnel hors-ligne",
-    "Aucune suppression de données XML",
-    "youtubeId comme clé unique anti-doublon",
-    "Aucune clé secrète côté client",
-    "Cloud = surcouche, jamais obligatoire",
-  ];
-  const centerHtml = `<p class="section-intro">Local-first, statique, GitHub Pages. Le cloud est une surcouche optionnelle — jamais une dépendance pour afficher la bibliothèque.</p>
-  <div class="grid-3">
-    ${appCard("Phase A — Design ✅", "Nouveau design Lumen (violet/cyan, Sora+Inter), page d'accueil animée, dashboard vidéos 3 colonnes, lecteur robuste.", "videos.html")}
-    ${appCard("Phase B — Données", "Couche d'accès unifiée store.js, modèle de données cible, schéma SQL Supabase — préparation cloud sans dépendance obligatoire.", "playlists.html")}
-    ${appCard("Phase C — Cloud", "Comptes Supabase, authentification email, Row Level Security par utilisateur, migration locale → cloud, synchronisation offline-safe.", "about.html")}
-  </div>
-  <div class="grid-3 section">
-    <article class="content-card"><div class="card-meta"><span class="badge">Tech</span></div><h3>Stack technique</h3><ul class="about-list">${techStack.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></article>
-    <article class="content-card"><div class="card-meta"><span class="badge">Données</span></div><h3>Sources de données</h3><ul class="about-list">${dataSources.map(([file, desc]) => `<li><code>${escapeHtml(file)}</code> — ${escapeHtml(desc)}</li>`).join("")}</ul></article>
-    <article class="content-card"><div class="card-meta"><span class="badge">Invariants</span></div><h3>Règles d'or</h3><ul class="about-list">${rules.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul></article>
-  </div>`;
+
+  const maxCatCount = Math.max(...state.categories.map((cat) => libraryVideos.filter((v) => v.category === cat.id).length), 1);
+  const catRows = state.categories.map((cat) => {
+    const count = libraryVideos.filter((v) => v.category === cat.id).length;
+    const pct = Math.round((count / maxCatCount) * 100);
+    return `<div class="db-cat-row">
+      <span class="db-cat-name">${escapeHtml(cat.title)}</span>
+      <div class="db-bar"><div class="db-bar-fill" style="width:${pct}%"></div></div>
+      <span class="db-cat-count">${count}</span>
+    </div>`;
+  }).join("") || `<p class="meta">Aucune catégorie.</p>`;
+
+  const settingRow = (title, sub, btnId, btnLabel, danger = false) =>
+    `<div class="db-setting-row"><span><strong>${title}</strong><small>${sub}</small></span><button class="btn${danger ? " danger" : ""}" id="${btnId}">${btnLabel}</button></div>`;
+
+  const centerHtml = `
+    <div class="db-stats">
+      ${stats.map((s) => `<article class="db-stat-card">
+        <div class="db-stat-icon ${s.cc}"><i class="ti ${s.icon}"></i></div>
+        <div class="db-stat-info">
+          <strong class="db-stat-value">${escapeHtml(String(s.value))}</strong>
+          <span class="db-stat-label">${s.label}</span>
+          <small>${escapeHtml(s.sub)}</small>
+        </div>
+      </article>`).join("")}
+    </div>
+
+    <div class="db-grid section">
+      <article class="content-card">
+        <h3>Vidéos par catégorie</h3>
+        <div class="db-cats">${catRows}</div>
+      </article>
+      <article class="content-card">
+        <h3>Réglages</h3>
+        <div class="db-settings">
+          ${settingRow("Bibliothèque", "Copie library.xml dans le presse-papiers", "dbExportLibrary", "Copier XML")}
+          ${settingRow("Workspace", "Copie workspace.xml", "dbExportWorkspace", "Copier XML")}
+          ${settingRow("Finance", "Copie finance.xml", "dbExportFinance", "Copier XML")}
+          <div class="db-sep"></div>
+          ${settingRow("Cache local", `${(lsSize / 1024).toFixed(1)} KB · ${lsKeys.length} clés localStorage`, "dbClearCache", "Vider le cache", true)}
+          <div class="db-setting-row db-cloud-row">
+            <span><strong>Cloud Supabase</strong><small>Synchronisation multi-appareils — Phase C</small></span>
+            <button class="btn" disabled>Bientôt</button>
+          </div>
+        </div>
+        <pre class="code-box export-box" id="dbXmlOutput" hidden></pre>
+      </article>
+    </div>`;
+
   return renderShell({
     active: "about",
-    icon: "ti-info-circle",
-    title: "Bibliothèque personnelle, modulaire et évolutive.",
-    subtitle: "Architecture Lumen",
+    icon: "ti-gauge",
+    title: "Tableau de bord.",
+    subtitle: `${libraryVideos.length} vidéos · ${playlists.length} playlists · ${state.realFiles.length} fichiers`,
     centerHtml
   });
 }
@@ -1250,6 +1280,33 @@ function bindPage() {
   if (page === "videos")    bindVideos();
   if (page === "files")     bindFiles();
   if (page === "finance")   bindFinance();
+  if (page === "about")     bindDashboard();
+}
+
+function bindDashboard() {
+  const dbToast = (msg, type = "success") => {
+    let t = document.querySelector("#dbToast");
+    if (!t) { t = Object.assign(document.createElement("div"), { id: "dbToast" }); document.body.appendChild(t); }
+    t.textContent = msg; t.className = `vd-toast ${type} show`;
+    clearTimeout(t._tt); t._tt = setTimeout(() => t.classList.remove("show"), 2800);
+  };
+  const copyXml = (xml, label) => {
+    navigator.clipboard.writeText(xml)
+      .then(() => dbToast(`${label} copié dans le presse-papiers !`))
+      .catch(() => {
+        const out = document.querySelector("#dbXmlOutput");
+        if (out) { out.textContent = xml; out.hidden = false; }
+        dbToast("Copiez depuis le panneau ci-dessous", "warn");
+      });
+  };
+  document.querySelector("#dbExportLibrary")?.addEventListener("click", () => copyXml(exportXml(), "library.xml"));
+  document.querySelector("#dbExportWorkspace")?.addEventListener("click", () => copyXml(exportWorkspaceXml(), "workspace.xml"));
+  document.querySelector("#dbExportFinance")?.addEventListener("click", () => copyXml(exportFinanceXml(), "finance.xml"));
+  document.querySelector("#dbClearCache")?.addEventListener("click", () => {
+    if (!confirm("Vider le cache local ?\nVos modifications locales seront perdues. Les fichiers XML de données sont préservés.")) return;
+    Object.values(APP.storage).forEach((key) => localStorage.removeItem(key));
+    location.reload();
+  });
 }
 
 function bindHome() {

@@ -209,6 +209,41 @@ Tests locaux :
 - Ajouter des filtres plus fins dans `files.html`.
 - Continuer à garder le projet compatible GitHub Pages sans backend obligatoire.
 
+---
+
+## Phase V2 — Lumen v2 (2026-07-01) ✅ MERGÉE DANS MAIN
+
+### Tâches complétées
+
+| Tâche | Description | Commit |
+|---|---|---|
+| V2-1 | Nav horizontale en haut partout + colonne playlists droite | `b515e6e` |
+| V2-2 | Playlist au centre, catégorie en étiquette optionnelle | `70fb841` |
+| V2-3 | Administration rapide (ajout playlist + vidéo par lien, oEmbed) | `ab7fa44` |
+| V2-4 | Page Fichiers avec vrais fichiers (`data/files/`, manifeste XML) | `98cb9d5` |
+| V2-5 | Import playlist yt-dlp + coller-importer dans l'app | `6366326` |
+| V2-6 | Page À propos → Tableau de bord (stats, catégories, réglages) | `14fc565` |
+| V2-7 | Habillage visuel (logo verre, vignettes YouTube, hero d'accueil) | `6c7e792` |
+| Import | 142 liens YouTube → 11 nouvelles playlists dans `library.xml` | `8d601aa` |
+
+### État final
+
+- Branche : `lumen/v2-2-playlist-first` → mergée dans `main`
+- PR #1 : fermée/mergée
+- `data/library.xml` : 16 playlists, 153 vidéos
+- Déploiement GitHub Pages : actif sur `main`
+
+### Nouvelles fonctionnalités v2
+
+- Coquille partagée (`renderShell`) sur toutes les pages
+- Ajout rapide playlist en 2 clics, vidéo en collant un lien YouTube (oEmbed)
+- Import batch de playlist (texte `titre | id` généré par `tools/playlist-to-xml.py`)
+- Anti-doublon par `youtubeId` partout
+- Page Fichiers : manifeste `data/files.xml`, filtres par type, drag-drop
+- Tableau de bord : 4 stat cards, barres par catégorie, export XML, réglages
+- Logo verre animé sur l'accueil, vignettes YouTube réelles, `onerror` gracieux
+- `prefers-reduced-motion` respecté
+
 ## Ajustements interface — 10 juin 2026
 
 Corrections effectuées :

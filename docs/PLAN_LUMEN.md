@@ -22,18 +22,19 @@
 
 | Tâche | Phase | Nom | Branche | État |
 |-------|-------|-----|---------|------|
-| A1 | A | Renommage VisionHub → Lumen | `lumen/A1-rebrand` | ✅ Terminée, en attente merge |
-| A2 | A | Nouveau design system (CSS) | `lumen/A2-design-system` | ✅ Terminée, en attente merge |
-| A3 | A | Page d'accueil animée | `lumen/A3-home-animated` | ✅ Terminée, en attente merge |
-| A4 | A | Dashboard Vidéos + drag-drop | `lumen/A3-home-animated` | ✅ Terminée, en attente merge |
-| A5 | A | Lecteur robuste + autres pages | `lumen/A3-home-animated` | ✅ Terminée, en attente merge |
-| V2-1 | V2 | Coquille de page partagée | `lumen/v2-1-shared-shell` | ✅ Terminée, en attente merge |
-| V2-2 | V2 | Playlist au centre, catégorie en étiquette | à créer | ⏳ À faire |
-| V2-3 | V2 | Administration rapide | à créer | ⏳ À faire |
-| V2-4 | V2 | Page Fichiers (vrais fichiers) | à créer | ⏳ À faire |
-| V2-5 | V2 | Import de playlist YouTube | à créer | ⏳ À faire |
-| V2-6 | V2 | À propos → tableau de bord/réglages | à créer | ⏳ À faire |
-| V2-7 | V2 | Habillage visuel | à créer | ⏳ À faire |
+| A1 | A | Renommage VisionHub → Lumen | `lumen/A1-rebrand` | ✅ Mergée dans main |
+| A2 | A | Nouveau design system (CSS) | `lumen/A2-design-system` | ✅ Mergée dans main |
+| A3 | A | Page d'accueil animée | `lumen/A3-home-animated` | ✅ Mergée dans main |
+| A4 | A | Dashboard Vidéos + drag-drop | `lumen/A3-home-animated` | ✅ Mergée dans main |
+| A5 | A | Lecteur robuste + autres pages | `lumen/A3-home-animated` | ✅ Mergée dans main |
+| V2-1 | V2 | Coquille de page partagée | `lumen/v2-2-playlist-first` | ✅ Mergée dans main |
+| V2-2 | V2 | Playlist au centre, catégorie en étiquette | `lumen/v2-2-playlist-first` | ✅ Mergée dans main |
+| V2-3 | V2 | Administration rapide | `lumen/v2-2-playlist-first` | ✅ Mergée dans main |
+| V2-4 | V2 | Page Fichiers (vrais fichiers) | `lumen/v2-2-playlist-first` | ✅ Mergée dans main |
+| V2-5 | V2 | Import de playlist YouTube | `lumen/v2-2-playlist-first` | ✅ Mergée dans main |
+| V2-6 | V2 | À propos → tableau de bord/réglages | `lumen/v2-2-playlist-first` | ✅ Mergée dans main |
+| V2-7 | V2 | Habillage visuel | `lumen/v2-2-playlist-first` | ✅ Mergée dans main |
+| — | V2 | Import 142 liens YouTube dans library.xml | `lumen/v2-2-playlist-first` | ✅ Mergée dans main |
 | B1 | B | Couche d'accès aux données | à créer | ⏳ À faire |
 | B2 | B | Modèle de données + schéma SQL | à créer | ⏳ À faire |
 | C1 | C | Connexion Supabase | à créer | ⏳ À faire |
@@ -409,7 +410,186 @@ npm run check:js && npx playwright test
 
 ---
 
-## Prochaine tâche : V2-2 — Playlist au centre, catégorie en étiquette
+---
+
+## Tâche V2-2 — Playlist au centre, catégorie en étiquette ✅
+
+**Branche :** `lumen/v2-2-playlist-first`
+**Commit :** `70fb841`
+**Date :** 2026-07-01
+
+### Ce qui a changé
+
+- La hiérarchie `Catégorie > Playlist > Vidéos` a été inversée : les playlists sont maintenant au premier plan.
+- La catégorie devient une **étiquette badge** optionnelle sur la carte playlist (ex. `· web`), pas un groupe obligatoire.
+- Créer une playlist sans catégorie fonctionne (catégorie vide = valide).
+- Vue par défaut : liste directe de playlists. Filtre catégorie disponible mais optionnel.
+- Admin : arbre `Playlist > Vidéos` (plus `Catégorie > Playlist > Vidéos`).
+
+### Fichiers modifiés
+- `app.js` — `renderPlaylists()`, `renderPlaylistCard()`, filtres ; catégorie retirée des sélecteurs obligatoires
+- `styles.css` — `.vd-pl-cat-tag` (badge étiquette catégorie)
+
+---
+
+## Tâche V2-3 — Administration rapide ✅
+
+**Branche :** `lumen/v2-2-playlist-first`
+**Commit :** `ab7fa44`
+**Date :** 2026-07-01
+
+### Ce qui a changé
+
+Trois sections dans la barre droite de la page Vidéos :
+
+1. **Ajout rapide playlist** — champ nom + sélect catégorie (optionnel) + bouton `+` → playlist créée en un clic
+2. **Ajout rapide vidéo** — coller un lien YouTube → extraction `youtubeId` → appel oEmbed pour récupérer le titre automatiquement → ajout à la playlist sélectionnée. Anti-doublon par `youtubeId`.
+3. **Import playlist** — textarea pour coller du texte format `Titre | youtubeId` (généré par `tools/playlist-to-xml.py`) → ajout batch de toutes les vidéos d'un coup.
+
+Toast de confirmation à chaque action. Bouton `+` de 34px fixe (corrigé : bug CSS spécificité `.qa-btn` vs `.vd-adm-btn`).
+
+### Fichiers modifiés
+- `app.js` — `renderVideoAdminBox()` réécrit, handlers `#quickPlaylistForm`, `#quickVideoForm`, `#importPlaylistForm`
+- `styles.css` — `.qa-section`, `.qa-label`, `.quick-row`, `.quick-input`, `.quick-btn`, `.qa-btn { width: 34px !important }` (après `.vd-adm-btn.primary:hover`)
+
+---
+
+## Tâche V2-4 — Page Fichiers (vrais fichiers) ✅
+
+**Branche :** `lumen/v2-2-playlist-first`
+**Commit :** `98cb9d5`
+**Date :** 2026-07-01
+
+### Ce qui a changé
+
+- `data/files.xml` : manifeste des vrais fichiers (id, title, path, type, size, date)
+- `data/files/guide.pdf` : PDF de démonstration (539 octets, généré en Python)
+- Page Fichiers : section **Fichiers réels** en haut, avec onglets filtre par type (Tous / PDF / Image / Doc / Vidéo / Zip)
+- Chaque fichier : icône colorée par type, nom, taille, bouton Ouvrir + Télécharger
+- Zone drag-drop : déposer un fichier → message explicatif (commit requis pour rendre permanent)
+- `loadFilesManifest()` + `mergeLocalFiles()` dans `init()`
+
+### Fichiers modifiés
+- `app.js` — `loadFilesManifest()`, `mergeLocalFiles()`, `renderRealFilesSection()`, `realFileRow()`, `realFileIcon()`, `realFileTypeFromMime()`, `formatFileSize()`
+- `styles.css` — `.rf-section`, `.rf-row`, `.rf-icon`, `.rf-pdf/.rf-image/...`, `.rf-dropzone`
+- `data/files.xml` (créé), `data/files/guide.pdf` (créé)
+
+---
+
+## Tâche V2-5 — Import de playlist YouTube ✅
+
+**Branche :** `lumen/v2-2-playlist-first`
+**Commit :** `6366326`
+**Date :** 2026-07-01
+
+### Ce qui a changé
+
+**Script local :** `tools/playlist-to-xml.py`
+```bash
+python3 tools/playlist-to-xml.py "URL_PLAYLIST" --title "Nom" --category web --level Débutant
+```
+→ utilise `yt-dlp --flat-playlist` pour extraire `titre | id` de chaque vidéo
+→ affiche le texte à coller dans Lumen ET le bloc XML complet
+
+**Dans l'app :** textarea "Import playlist" dans la barre droite (section V2-3) :
+- Coller les lignes `titre | id`
+- L'app parse, déduplique par `youtubeId`, ajoute à la playlist sélectionnée
+- Séparation sur `line.lastIndexOf(" | ")` pour gérer les titres qui contiennent " | "
+
+**Guide :** `tools/import-playlist.md` — installation yt-dlp, commande, options, exclure des IDs déjà présents.
+
+### Fichiers modifiés
+- `tools/playlist-to-xml.py` (créé)
+- `tools/import-playlist.md` (créé)
+- `app.js` — handler `#importPlaylistForm` dans `bindVideoDashboard()`
+
+---
+
+## Tâche V2-6 — Page À propos → Tableau de bord ✅
+
+**Branche :** `lumen/v2-2-playlist-first`
+**Commit :** `14fc565`
+**Date :** 2026-07-01
+
+### Ce qui a changé
+
+La page `about.html` (ancienne page de présentation) est remplacée par un **tableau de bord personnel** :
+
+```
+┌──────────────────────────────────────────────┐
+│  185 vidéos  │  11 playlists  │  6 catég.  │  0 fichiers  │  ← 4 stat cards
+├──────────────────────────────────────────────┤
+│  Répartition par catégorie                   │  ← barres de progression
+│  ████████████ Informatique 82%               │
+│  ██ Business 10%   ...                       │
+├──────────────────────────────────────────────┤
+│  Réglages : Exporter XML · Vider le cache    │  ← actions
+└──────────────────────────────────────────────┘
+```
+
+Nav : "À propos" renommé "Tableau de bord", icône `ti-gauge`.
+
+### Fichiers modifiés
+- `app.js` — `renderAbout()` réécrit, `bindDashboard()` ajouté
+- `styles.css` — `.db-stats`, `.db-stat-card`, `.db-stat-icon.pc1-pc4`, `.db-cats`, `.db-bar`, `.db-settings`
+- `about.html` — titre et meta mis à jour
+
+---
+
+## Tâche V2-7 — Habillage visuel ✅
+
+**Branche :** `lumen/v2-2-playlist-first`
+**Commit :** `6c7e792`
+**Date :** 2026-07-01
+
+### Ce qui a changé
+
+- **Logo Lumen sur l'accueil** : `assets/lumen-icon-glass.svg` affiché en grand (200px) dans un cadre verre animé (`home-logo-glass`) avec glow violet → cyan
+- **Vignettes YouTube réelles** : toutes les balises `<img src="${thumb(id)}">` ont `onerror="this.style.opacity='0'"` — image disparaît proprement si YouTube bloque la vignette (hors-ligne, ID invalide)
+- **`prefers-reduced-motion`** : logo statique si l'utilisateur a désactivé les animations système
+- **Hero d'accueil** : texte et sous-titre enrichis, logo intégré au centre avant le titre
+
+### Fichiers modifiés
+- `app.js` — `renderHome()` : logo verre + h1/sous-titre remaniés ; `onerror` ajouté sur tous les `<img>` de vignettes
+- `styles.css` — `.home-logo-wrap`, `.home-logo-glass`, `@media (prefers-reduced-motion: reduce)`, `.vd-thumb img { transition: opacity .2s }`
+
+---
+
+## Import de données — 142 liens YouTube ✅
+
+**Branche :** `lumen/v2-2-playlist-first`
+**Commit :** `8d601aa`
+**Date :** 2026-07-01
+
+### Ce qui a été fait
+
+Traitement de `liens_youtube_pas_encore_dans_visionhub.md` (145 liens) :
+- **142 entrées ajoutées** à `data/library.xml` en 11 nouvelles playlists
+- **3 URLs ignorées** (liens de chaînes YouTube `@username`, non-addables)
+- `liens_youtube_deja_dans_visionhub.md` mis à jour avec les 142 entrées
+- Fichier source supprimé (tout le contenu traité)
+
+| Playlist créée | Catégorie | Vidéos |
+|---|---|---|
+| Ethical Hacking — Cours et ressources | informatique | 33 |
+| Bash & Terminal — Scripting Linux | informatique | 6 |
+| Python — Cours et projets | informatique | 3 |
+| Computer Science — CS50 & Fondamentaux | informatique | 13 |
+| Informatique — Windows, PC & Astuces | informatique | 15 |
+| Trading, Finance & Crypto | business | 14 |
+| E-commerce & Monétisation | business | 10 |
+| Self-Développement & Mindset | business | 10 |
+| Web Dev & Outils Divers | web | 4 |
+| Vidéos — À classer | informatique | 15 |
+| Playlists YouTube — À importer | informatique | 19 |
+
+**État final library.xml :** 16 playlists, 153 vidéos.
+
+---
+
+## Fin Phase V2 ✅
+
+Toutes les tâches V2-1 → V2-7 + import données sont terminées. PR #1 mergée dans `main` le 2026-07-01.
 
 ---
 
@@ -441,4 +621,4 @@ npm run check:js && npx playwright test
 
 ---
 
-*Dernière mise à jour : 20 juin 2026 — après tâche V2-1 (coquille de page partagée)*
+*Dernière mise à jour : 2026-07-01 — Phase V2 complète mergée dans main (V2-1 → V2-7 + import 142 vidéos)*

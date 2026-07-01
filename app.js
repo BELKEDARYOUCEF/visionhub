@@ -551,12 +551,15 @@ function renderHome() {
   <canvas id="homeCanvas" aria-hidden="true"></canvas>
   <div class="home-glow" id="homeGlow" aria-hidden="true"></div>
   <div class="home-inner">
-    <p class="home-eyebrow"><span class="home-dot"></span> Votre bibliothèque personnelle de savoir</p>
-    <h1>Tout ce que vous regardez,<br><span class="home-grad">rangé et retrouvable.</span></h1>
-    <p class="home-sub">Organisez vos vidéos YouTube, vos playlists, vos ressources importées, vos fichiers et vos notes. Catégories, playlists et classement intelligent — une base claire qui vit sur GitHub Pages, sans serveur.</p>
+    <div class="home-logo-wrap">
+      <img src="assets/lumen-logo-glass.svg" class="home-logo-glass" alt="Lumen" width="200" height="61">
+    </div>
+    <p class="home-eyebrow"><span class="home-dot"></span> Bibliothèque personnelle · Local-first</p>
+    <h1>Savoir regardé.<br><span class="home-grad">Savoir rangé.</span></h1>
+    <p class="home-sub">Vidéos YouTube, playlists, fichiers et notes — dans une bibliothèque claire, sans serveur, toujours disponible.</p>
     <div class="home-actions">
-      <a class="home-btn-primary" href="videos.html"><i class="ti ti-sparkles"></i> Ouvrir ma bibliothèque</a>
-      <a class="home-btn-ghost" href="videos.html"><i class="ti ti-player-play"></i> Voir la démo</a>
+      <a class="home-btn-primary" href="videos.html"><i class="ti ti-player-play"></i> Ouvrir ma bibliothèque</a>
+      <a class="home-btn-ghost" href="playlists.html"><i class="ti ti-stack-2"></i> Parcourir les playlists</a>
     </div>
     <div class="home-stats">
       <div class="home-stat"><span class="home-stat-n">${totalVideos || '—'}</span><span class="home-stat-l">Vidéos rangées</span></div>
@@ -690,7 +693,7 @@ function vdCard(video) {
     data-source="${isLib ? "library" : "imported"}"
     data-search="${escapeAttr(searchData)}">
     <div class="vd-thumb">
-      <img src="${thumb(video.youtubeId)}" alt="" loading="lazy">
+      <img src="${thumb(video.youtubeId)}" alt="" loading="lazy" onerror="this.style.opacity='0'">
       <div class="vd-play-orb"><i class="ti ti-player-play-filled"></i></div>
       <span class="vd-thumb-src ${isLib ? "vd-src-lib" : "vd-src-imp"}">
         <span class="vd-dot"></span>${isLib ? "Bibliothèque" : "Importée"}
@@ -1045,7 +1048,7 @@ function importedVideoCard(video) {
   const search = `${video.title} ${video.description} ${categoryName(video.category)} ${video.source || ""} ${statusLabel} ${video.tags.join(" ")}`.toLowerCase();
   const source = sourceFolder(video.source);
   return `<article class="imported-video-card" data-imported-video data-category="${escapeAttr(video.category)}" data-source="${escapeAttr(source)}" data-status="${status}" data-search="${escapeAttr(search)}">
-    <img class="media-thumb" src="${thumb(video.youtubeId)}" alt="Miniature ${escapeAttr(video.title)}" loading="lazy">
+    <img class="media-thumb" src="${thumb(video.youtubeId)}" alt="Miniature ${escapeAttr(video.title)}" loading="lazy" onerror="this.style.opacity='0'">
     <div class="card-meta"><span class="badge">${escapeHtml(categoryName(video.category))}</span><span class="${organization ? "badge" : "level"}">${escapeHtml(statusLabel)}</span></div>
     <h3>${escapeHtml(video.title)}</h3>
     <p>${escapeHtml(source || video.source || "resources.xml")}</p>
@@ -1080,7 +1083,7 @@ function videoRow(video, playlistId, isActive) {
   const search = `${video.title} ${video.description} ${video.level} ${video.topic || ""} ${video.domain || ""} ${video.intent || ""} ${video.tags.join(" ")}`.toLowerCase();
   const topic = video.topic ? `<span class="badge">${escapeHtml(video.topic)}</span>` : "";
   const domain = video.domain ? `<span class="badge">${escapeHtml(video.domain)}</span>` : "";
-  return `<button class="video-row ${isActive ? "active" : ""}" data-video-row data-playlist="${playlistId}" data-video="${video.id}" data-search="${escapeAttr(search)}"><img class="video-thumb" src="${thumb(video.youtubeId)}" alt="Miniature ${escapeAttr(video.title)}" loading="lazy"><span><h3>${escapeHtml(video.title)}</h3><p>${escapeHtml(video.description)}</p><span class="video-meta">${domain}${topic}<span class="badge">${escapeHtml(video.duration)}</span><span class="level">${escapeHtml(video.level)}</span></span></span></button>`;
+  return `<button class="video-row ${isActive ? "active" : ""}" data-video-row data-playlist="${playlistId}" data-video="${video.id}" data-search="${escapeAttr(search)}"><img class="video-thumb" src="${thumb(video.youtubeId)}" alt="Miniature ${escapeAttr(video.title)}" loading="lazy" onerror="this.style.opacity='0'"><span><h3>${escapeHtml(video.title)}</h3><p>${escapeHtml(video.description)}</p><span class="video-meta">${domain}${topic}<span class="badge">${escapeHtml(video.duration)}</span><span class="level">${escapeHtml(video.level)}</span></span></span></button>`;
 }
 
 function renderFiles() {

@@ -1,6 +1,6 @@
-# VisionHub Pro Foundation
+# Lumen — Personal knowledge & media library
 
-VisionHub Pro Foundation est un site statique compatible GitHub Pages pour organiser des vidéos YouTube, des playlists, des ressources, des fichiers et un suivi finance léger.
+Lumen est une bibliothèque personnelle statique compatible GitHub Pages pour organiser des vidéos YouTube, des playlists, des ressources, des fichiers et un suivi finance léger.
 
 Le projet fonctionne avec :
 
@@ -31,6 +31,7 @@ data/workspace.xml
 data/finance.xml
 README.md
 SUIVI_PROJET.md
+AGENTS.md
 ```
 
 Fichiers de développement conservés :
@@ -154,3 +155,9 @@ data/visionhub.sqlite
 __pycache__/
 *.pyc
 ```
+
+## Règles De Projet
+
+Les bonnes pratiques permanentes sont centralisées dans `AGENTS.md`.
+
+Avant une nouvelle évolution, utiliser ce fichier comme référence pour garder Lumen statique, propre, testable et compatible GitHub Pages.

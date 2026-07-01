@@ -4,14 +4,26 @@ const APP = {
   resourcesUrl: "data/resources.xml",
   videoIntelligenceUrl: "data/video-intelligence.xml",
   financeUrl: "data/finance.xml",
+  filesUrl: "data/files.xml",
   storage: {
+    additions: "lumen-v2-additions",
+    library: "lumen-v2-library",
+    admin: "lumen-v2-admin",
+    favorites: "lumen-v2-favorites",
+    active: "lumen-v2-active",
+    workspace: "lumen-v2-workspace",
+    finance: "lumen-v2-finance",
+    files: "lumen-v2-files"
+  },
+  legacyStorage: {
     additions: "visionhub-v2-additions",
     library: "visionhub-v2-library",
     admin: "visionhub-v2-admin",
     favorites: "visionhub-v2-favorites",
     active: "visionhub-v2-active",
     workspace: "visionhub-v2-workspace",
-    finance: "visionhub-v2-finance"
+    finance: "visionhub-v2-finance",
+    files: "visionhub-v2-files"
   }
 };
 
@@ -22,6 +34,7 @@ let state = {
   categories: [],
   playlists: [],
   files: [],
+  realFiles: [],
   importedVideos: [],
   videoIntelligence: {},
   finance: { transactions: [], goals: [] },
@@ -32,12 +45,21 @@ let state = {
 const page = document.body.dataset.page || "home";
 const app = document.querySelector("#app");
 
+migrateLocalStorageKeys();
 init();
 
-async function init() {
-  bindHeader();
-  markActiveNav();
+function migrateLocalStorageKeys() {
+  const keys = Object.keys(APP.storage);
+  for (const k of keys) {
+    const newKey = APP.storage[k];
+    const oldKey = APP.legacyStorage[k];
+    if (localStorage.getItem(newKey) === null && localStorage.getItem(oldKey) !== null) {
+      localStorage.setItem(newKey, localStorage.getItem(oldKey));
+    }
+  }
+}
 
+async function init() {
   let xmlText = await loadXmlText();
   try {
     parseLibrary(xmlText);
@@ -55,6 +77,8 @@ async function init() {
   await loadFinance();
   mergeLocalWorkspace();
   mergeLocalFinance();
+  await loadFilesManifest();
+  mergeLocalFiles();
   route();
 }
 
@@ -392,16 +416,15 @@ function mergeLocalAdditions() {
 
 function applyLibraryOverride() {
   const override = readJson(APP.storage.library, null);
-  if (!override?.categories?.length || !Array.isArray(override.playlists)) return;
-  state.categories = override.categories.map((cat) => ({
+  if (!Array.isArray(override?.playlists)) return;
+  state.categories = (override.categories || []).map((cat) => ({
     id: slug(cat.id || cat.title),
     title: cat.title || "Catégorie",
-    icon: cat.icon || cat.title?.slice(0, 2) || "VH",
+    icon: cat.icon || cat.title?.slice(0, 2) || "LM",
     color: cat.color || "cyan",
     description: cat.description || ""
   }));
   state.playlists = override.playlists
-    .filter((list) => state.categories.some((cat) => cat.id === list.category))
     .map((list) => {
       const playlistId = slug(list.id || list.title);
       return {
@@ -459,6 +482,33 @@ function mergeLocalFinance() {
   });
 }
 
+async function loadFilesManifest() {
+  const xmlText = await loadDataXml(APP.filesUrl);
+  if (!xmlText) return;
+  try {
+    const doc = new DOMParser().parseFromString(xmlText, "application/xml");
+    state.realFiles = [...doc.querySelectorAll("file")].map((node) => ({
+      id: node.getAttribute("id") || `f-${Date.now()}`,
+      title: node.getAttribute("title") || clean(node.textContent),
+      description: clean(node.textContent),
+      path: node.getAttribute("path") || "",
+      type: node.getAttribute("type") || "other",
+      size: node.getAttribute("size") || "",
+      date: node.getAttribute("date") || "",
+      local: false
+    }));
+  } catch (error) {
+    console.warn("data/files.xml invalide.", error);
+  }
+}
+
+function mergeLocalFiles() {
+  const additions = readJson(APP.storage.files, []);
+  additions.forEach((file) => {
+    if (!state.realFiles.some((f) => f.id === file.id)) state.realFiles.push(file);
+  });
+}
+
 function route() {
   const routes = {
     home: renderHome,
@@ -468,35 +518,284 @@ function route() {
     finance: renderFinance,
     about: renderAbout
   };
+  document.body.classList.add("vd-mode");
   app.innerHTML = (routes[page] || renderHome)();
   bindPage();
 }
 
 function renderHome() {
+  const totalVideos = allVideos().length;
+  const totalCats   = state.categories.length;
+
+  const features = [
+    { icon: 'ti-drag-drop',    title: 'Glisser-déposer',        desc: 'Attrapez une vidéo et déposez-la dans une playlist depuis la barre latérale. Le classement se fait en direct.', c: 1 },
+    { icon: 'ti-wand',         title: 'Classement intelligent',  desc: "Vos vidéos importées reçoivent une catégorie et une playlist suggérées d'après leur titre, leurs tags et leur source.", c: 2 },
+    { icon: 'ti-tags',         title: 'Hiérarchie claire',       desc: "Catégorie, puis playlist, puis vidéo. Une structure simple qui passe à l'échelle, de 11 à 1000 vidéos.", c: 3 },
+    { icon: 'ti-list-check',   title: 'Lecteur robuste',         desc: "Miniature d'abord, iframe au clic, et toujours un bouton « Ouvrir sur YouTube ». Fini l'erreur 153.", c: 4 },
+    { icon: 'ti-search',       title: 'Recherche & filtres',     desc: 'Cherchez dans les titres, tags, catégories et descriptions. Filtrez par périmètre, source ou playlist.', c: 5 },
+    { icon: 'ti-file-export',  title: 'Export XML',              desc: "Toutes vos modifications restent locales, puis s'exportent en XML propre. Vos données restent les vôtres.", c: 1 },
+  ];
+
+  const catColors = ['--accent-2', '--amber', '--rose', '--green', '--cyan', '--text-2'];
+  const catIcons  = ['ti-code', 'ti-cpu', 'ti-palette', 'ti-trending-up', 'ti-brain', 'ti-rocket'];
+
+  const modules = [
+    { icon: 'ti-player-play', label: 'Vidéos',    href: 'videos.html' },
+    { icon: 'ti-stack-2',     label: 'Playlists', href: 'playlists.html' },
+    { icon: 'ti-folder',      label: 'Fichiers',  href: 'files.html' },
+    { icon: 'ti-wallet',      label: 'Finance',   href: 'finance.html' },
+  ];
+
+  const centerHtml = `
+<div class="home-hero" id="homeHero">
+  <canvas id="homeCanvas" aria-hidden="true"></canvas>
+  <div class="home-glow" id="homeGlow" aria-hidden="true"></div>
+  <div class="home-inner">
+    <div class="home-logo-wrap">
+      <img src="assets/lumen-logo-glass.svg" class="home-logo-glass" alt="Lumen" width="200" height="61">
+    </div>
+    <p class="home-eyebrow"><span class="home-dot"></span> Bibliothèque personnelle · Local-first</p>
+    <h1>Savoir regardé.<br><span class="home-grad">Savoir rangé.</span></h1>
+    <p class="home-sub">Vidéos YouTube, playlists, fichiers et notes — dans une bibliothèque claire, sans serveur, toujours disponible.</p>
+    <div class="home-actions">
+      <a class="home-btn-primary" href="videos.html"><i class="ti ti-player-play"></i> Ouvrir ma bibliothèque</a>
+      <a class="home-btn-ghost" href="playlists.html"><i class="ti ti-stack-2"></i> Parcourir les playlists</a>
+    </div>
+    <div class="home-stats">
+      <div class="home-stat"><span class="home-stat-n">${totalVideos || '—'}</span><span class="home-stat-l">Vidéos rangées</span></div>
+      <div class="home-stat"><span class="home-stat-n">${totalCats || '—'}</span><span class="home-stat-l">Catégories</span></div>
+      <div class="home-stat"><span class="home-stat-n">∞</span><span class="home-stat-l">Playlists</span></div>
+      <div class="home-stat"><span class="home-stat-n">XML</span><span class="home-stat-l">Vos données</span></div>
+    </div>
+  </div>
+  <div class="home-scroll-hint" aria-hidden="true"><i class="ti ti-chevron-down"></i></div>
+</div>
+
+<section class="home-section" id="home-features">
+  <div class="home-wrap">
+    <div class="home-section-head reveal">
+      <p class="home-label">Conçu pour le flux</p>
+      <h2>Une organisation qui suit votre rythme</h2>
+      <p>Chaque vidéo trouve sa place. Glissez, classez, retrouvez — sans friction.</p>
+    </div>
+    <div class="home-fgrid">
+      ${features.map(f => `
+      <div class="home-fcard c${f.c} reveal" data-spotlight>
+        <div class="home-fcard-ic"><i class="ti ${f.icon}"></i></div>
+        <h3>${f.title}</h3>
+        <p>${f.desc}</p>
+      </div>`).join('')}
+    </div>
+  </div>
+</section>
+
+<section class="home-section home-section-alt" id="home-categories">
+  <div class="home-wrap">
+    <div class="home-section-head reveal">
+      <p class="home-label">Vos catégories</p>
+      <h2>Un savoir bien rangé</h2>
+      <p>Vos vidéos se classent dans des catégories claires, chacune avec sa couleur.</p>
+    </div>
+    <div class="home-catrow">
+      ${state.categories.length > 0
+        ? state.categories.map((cat, i) => `
+          <div class="home-catcard reveal" style="--cc:var(${catColors[i % catColors.length]})">
+            <span class="home-catbadge"><i class="ti ${catIcons[i % catIcons.length]}"></i> ${escapeHtml(cat.id.toUpperCase().slice(0, 4))}</span>
+            <h4>${escapeHtml(cat.title)}</h4>
+            <p>${escapeHtml(cat.description || 'Contenu classé par catégorie.')}</p>
+          </div>`).join('')
+        : '<p style="color:var(--text-2);text-align:center">Chargez la bibliothèque pour voir vos catégories.</p>'}
+    </div>
+  </div>
+</section>
+
+<section class="home-section" id="home-modules">
+  <div class="home-wrap">
+    <div class="home-section-head reveal">
+      <p class="home-label">Les modules</p>
+      <h2>Tout votre univers, par espace</h2>
+      <p>Chaque type de contenu a sa page, le même moteur d'organisation partout.</p>
+    </div>
+    <div class="home-modrow">
+      ${modules.map(m => `<a class="home-modpill reveal" href="${m.href}"><i class="ti ${m.icon}"></i> ${m.label}</a>`).join('')}
+    </div>
+  </div>
+</section>`;
+
+  return renderShell({ active: "home", centerHtml });
+}
+
+const VD_PL_COLORS = ["pc1", "pc2", "pc3", "pc4", "pc5"];
+const VD_PL_ICONS = ["ti-code", "ti-cpu", "ti-palette", "ti-trending-up", "ti-device-desktop", "ti-brain"];
+
+function renderShell({ active, icon = "ti-sparkles", title = "", subtitle = "", topbarRight = "", subheaderHtml = "", centerHtml = "", rightHtml = "" }) {
   const videos = allVideos();
-  return `
-    <section class="hero">
-      <div class="hero-copy">
-        <p class="kicker">VisionHub OS</p>
-        <h1>Ton centre vivant pour vidéos, fichiers, apprentissage et business.</h1>
-        <p>Une bibliothèque claire pour organiser vidéos, fichiers, apprentissage et suivi business au même endroit.</p>
-        <div class="hero-actions">
-          <a class="btn primary" href="videos.html">Ouvrir le lecteur</a>
-          <a class="btn" href="playlists.html">Gérer les playlists</a>
-          <a class="btn ghost" href="files.html">Organiser les fichiers</a>
+  const playlists = regularPlaylists();
+  const navLink = (key, href, navIcon, label, count) => `<a class="vd-nav-link ${active === key ? "active" : ""}" href="${href}"><i class="ti ${navIcon}"></i><span>${label}</span>${count === undefined ? "" : `<span class="vd-nav-count">${count}</span>`}</a>`;
+  return `<div class="vd-app">
+  <header class="vd-topnav">
+    <a class="vd-brand" href="index.html">
+      <img src="assets/lumen-icon-glass.svg" class="vd-brand-mark" alt="" width="26" height="26">
+      <span>Lumen</span>
+    </a>
+    <nav class="vd-nav">
+      ${navLink("home", "index.html", "ti-home", "Accueil")}
+      ${navLink("videos", "videos.html", "ti-player-play", "Vidéos", videos.length)}
+      ${navLink("playlists", "playlists.html", "ti-stack-2", "Playlists", playlists.length)}
+      ${navLink("files", "files.html", "ti-folder", "Fichiers")}
+      ${navLink("finance", "finance.html", "ti-wallet", "Finance")}
+      ${navLink("about", "about.html", "ti-gauge", "Tableau de bord")}
+    </nav>
+    <div class="vd-topnav-end">
+      <div class="vd-avatar">YB</div>
+    </div>
+  </header>
+  <div class="vd-body${rightHtml ? " has-right" : ""}">
+    <main class="vd-main">
+      ${title ? `<div class="vd-topbar">
+        <div class="vd-topbar-title">
+          <i class="ti ${icon}"></i>
+          <div><h1>${escapeHtml(title)}</h1>${subtitle ? `<div class="vd-topbar-sub">${subtitle}</div>` : ""}</div>
         </div>
+        ${topbarRight ? `<div class="vd-topbar-actions">${topbarRight}</div>` : ""}
+      </div>` : ""}
+      ${subheaderHtml}
+      <div class="vd-scroll">${centerHtml}</div>
+    </main>
+    ${rightHtml ? `<aside class="vd-right">${rightHtml}</aside>` : ""}
+  </div>
+</div>`;
+}
+
+function vdPlaylistItem(list, i) {
+  const cc = VD_PL_COLORS[i % VD_PL_COLORS.length];
+  const ic = VD_PL_ICONS[i % VD_PL_ICONS.length];
+  return `<div class="vd-pl" data-drop-playlist-id="${escapeAttr(list.id)}">
+    <div class="vd-pl-ic ${cc}"><i class="ti ${ic}"></i></div>
+    <div class="vd-pl-info">
+      <div class="vd-pl-name">${escapeHtml(list.title)}</div>
+      <div class="vd-pl-meta">${escapeHtml(categoryName(list.category))}</div>
+    </div>
+    <span class="vd-pl-count" data-pl-count="${escapeAttr(list.id)}">${list.videos.length}</span>
+  </div>`;
+}
+
+function vdCard(video) {
+  const isLib = !video.imported;
+  const href = `videos.html?playlist=${encodeURIComponent(video.playlistId)}&video=${encodeURIComponent(video.id)}`;
+  const tags = (video.tags || []).slice(0, 2);
+  const searchData = `${video.title} ${categoryName(video.category)} ${video.playlistTitle} ${tags.join(" ")}`.toLowerCase();
+  return `<a class="vd-vcard" href="${href}" draggable="true"
+    data-vcard data-video-id="${escapeAttr(video.id)}"
+    data-youtube-id="${escapeAttr(video.youtubeId)}"
+    data-playlist-id="${escapeAttr(video.playlistId)}"
+    data-category="${escapeAttr(video.category)}"
+    data-source="${isLib ? "library" : "imported"}"
+    data-search="${escapeAttr(searchData)}">
+    <div class="vd-thumb">
+      <img src="${thumb(video.youtubeId)}" alt="" loading="lazy" onerror="this.style.opacity='0'">
+      <div class="vd-play-orb"><i class="ti ti-player-play-filled"></i></div>
+      <span class="vd-thumb-src ${isLib ? "vd-src-lib" : "vd-src-imp"}">
+        <span class="vd-dot"></span>${isLib ? "Bibliothèque" : "Importée"}
+      </span>
+      ${video.duration ? `<span class="vd-thumb-dur">${escapeHtml(video.duration)}</span>` : ""}
+    </div>
+    <div class="vd-vbody">
+      <h3>${escapeHtml(video.title)}</h3>
+      <div class="vd-vmeta">
+        <span>${escapeHtml(categoryName(video.category))}</span>
+        <span>·</span>
+        <span>${escapeHtml(video.playlistTitle)}</span>
       </div>
-      <div class="hero-board">
-        <article class="screen-card featured"><p class="eyebrow">Video intelligence</p><strong>${videos.length} vidéos prêtes</strong><p>${state.playlists.length} playlists structurées par catégorie.</p></article>
-        <div class="grid-2 mini-stack">${state.playlists.slice(0, 3).map((list) => `<a class="screen-card" href="videos.html?playlist=${list.id}"><span class="badge">${categoryName(list.category)}</span><strong>${escapeHtml(list.title)}</strong><p>${list.videos.length} vidéos</p></a>`).join("")}</div>
-      </div>
-    </section>
-    <section class="section"><h2>Applications intégrées</h2><div class="grid-4">
-      ${appCard("Bibliothèque vidéo", "Playlists, favoris, lecture 16:9 et tags.", "videos.html")}
-      ${appCard("File OS", "Dossiers, notes, ressources et structure type Drive/Notion.", "files.html")}
-      ${appCard("Finance cockpit", "Première base pour revenus, dépenses et budget.", "finance.html")}
-      ${appCard("Administration", "Gestion progressive de la bibliothèque.", "playlists.html")}
-    </div></section>`;
+      ${tags.length ? `<div class="vd-vtags">${tags.map((t) => `<span class="vd-tag">${escapeHtml(t)}</span>`).join("")}</div>` : ""}
+    </div>
+  </a>`;
+}
+
+function renderPlaylistsList() {
+  const playlists = regularPlaylists();
+  return `<div class="vd-right-head"><h2>Playlists</h2></div>
+    <div class="vd-hint"><i class="ti ti-drag-drop"></i> Glissez une vidéo pour la classer</div>
+    ${playlists.map((list, i) => vdPlaylistItem(list, i)).join("")}`;
+}
+
+function renderVideoAdminBox() {
+  const categoryOptions = state.categories.map((cat) =>
+    `<option value="${escapeAttr(cat.id)}">${escapeHtml(cat.title)}</option>`
+  ).join("");
+  const playlistOptions = regularPlaylists().map((list) =>
+    `<option value="${escapeAttr(list.id)}">${escapeHtml(list.title)}</option>`
+  ).join("");
+  return `<div class="vd-admin-box">
+    <div class="vd-admin-box-title"><i class="ti ti-bolt"></i> Ajout rapide</div>
+
+    <div class="qa-section">
+      <div class="qa-label"><i class="ti ti-stack-2"></i> Nouvelle playlist</div>
+      <form id="quickPlaylistForm" autocomplete="off">
+        <div class="quick-row">
+          <input class="quick-input" name="name" placeholder="Nom de la playlist…" required>
+          <button class="vd-adm-btn primary qa-btn" type="submit"><i class="ti ti-plus"></i></button>
+        </div>
+        <select class="select-input quick-select" name="category">
+          <option value="">Catégorie (optionnel)</option>
+          ${categoryOptions}
+        </select>
+      </form>
+    </div>
+
+    <div class="qa-section">
+      <div class="qa-label"><i class="ti ti-brand-youtube"></i> Ajouter une vidéo</div>
+      <form id="quickVideoForm" autocomplete="off">
+        <div class="quick-row">
+          <input class="quick-input" name="url" placeholder="Coller un lien YouTube…" required>
+          <button class="vd-adm-btn primary qa-btn" type="submit" id="quickVideoBtn"><i class="ti ti-plus"></i></button>
+        </div>
+        <select class="select-input quick-select" name="playlist">
+          <option value="">Choisir une playlist…</option>
+          ${playlistOptions}
+        </select>
+      </form>
+    </div>
+
+    <div class="qa-section">
+      <div class="qa-label"><i class="ti ti-list-check"></i> Import playlist <a class="qa-help-link" href="tools/import-playlist.md" target="_blank" title="Guide yt-dlp"><i class="ti ti-help-circle"></i></a></div>
+      <form id="importPlaylistForm" autocomplete="off">
+        <textarea class="quick-textarea" name="text" id="importPlaylistText" rows="4" placeholder="Coller le texte du script :\nTitre vidéo 1 | youtubeId1\nTitre vidéo 2 | youtubeId2\n…"></textarea>
+        <div class="quick-row" style="margin-top:5px">
+          <select class="select-input quick-select" name="playlist" style="flex:1">
+            <option value="">Choisir une playlist…</option>
+            ${playlistOptions}
+          </select>
+          <button class="vd-adm-btn primary qa-btn" type="submit" id="importPlaylistBtn" title="Importer"><i class="ti ti-file-import"></i></button>
+        </div>
+      </form>
+    </div>
+
+    <div class="qa-sep"></div>
+    <div class="vd-admin-btns">
+      <button class="vd-adm-btn" id="vdOpenAdmin2"><i class="ti ti-pencil"></i> Organiser la bibliothèque</button>
+      <button class="vd-adm-btn" id="vdExportXml"><i class="ti ti-file-export"></i> Exporter XML</button>
+      <button class="vd-adm-btn" id="vdCopyXml"><i class="ti ti-copy"></i> Copier XML</button>
+    </div>
+    <pre class="vd-export-box" id="vdXmlOutput" hidden></pre>
+  </div>`;
+}
+
+function renderShortcutsPanel() {
+  const videos = allVideos();
+  const playlists = regularPlaylists();
+  const shortcuts = [
+    { href: "videos.html", icon: "ti-player-play", cc: "pc1", label: "Vidéos", meta: `${videos.length} vidéos` },
+    { href: "playlists.html", icon: "ti-stack-2", cc: "pc2", label: "Playlists", meta: `${playlists.length} playlists` },
+    { href: "files.html", icon: "ti-folder", cc: "pc3", label: "Fichiers", meta: `${state.files.length} dossiers` },
+    { href: "finance.html", icon: "ti-wallet", cc: "pc4", label: "Finance", meta: "Suivi léger" }
+  ];
+  return `<div class="vd-right-head"><h2>Raccourcis</h2></div>
+    <div class="vd-hint"><i class="ti ti-bolt"></i> Navigation rapide</div>
+    ${shortcuts.map((s) => `<a class="vd-pl" href="${s.href}">
+      <div class="vd-pl-ic ${s.cc}"><i class="ti ${s.icon}"></i></div>
+      <div class="vd-pl-info"><div class="vd-pl-name">${s.label}</div><div class="vd-pl-meta">${escapeHtml(s.meta)}</div></div>
+    </a>`).join("")}`;
 }
 
 function appCard(title, text, href) {
@@ -506,9 +805,19 @@ function appCard(title, text, href) {
 function renderPlaylists() {
   const params = new URLSearchParams(location.search);
   const current = params.get("category") || "all";
-  return `<section><div class="page-head"><div><p class="kicker">Bibliothèque</p><h1>Playlists dynamiques.</h1><p class="section-intro">Recherche, filtre par catégorie et lance directement la bonne vidéo.</p></div><div class="hero-actions"><button class="btn primary" id="openAdminPanel">Administration</button><button class="btn" id="exportLibraryFromPlaylists">Exporter XML</button></div></div>
-    <div class="filter-bar"><input class="search-input" id="playlistSearch" type="search" placeholder="Rechercher une playlist, tag ou catégorie"><div class="filter-tabs" id="playlistFilters">${filterButtons(current)}</div></div>
-    <div class="playlist-grid" id="playlistGrid">${state.playlists.map(playlistCard).join("")}</div><div id="playlistEmpty"></div>${renderImportedVideosSection("playlists")}${renderAdminDrawer()}<pre class="code-box export-box" id="playlistXmlOutput" hidden></pre></section>`;
+  const topbarRight = `<button class="btn primary" id="openAdminPanel">Administration</button><button class="btn" id="exportLibraryFromPlaylists">Exporter XML</button>`;
+  const subheaderHtml = `<div class="vd-subbar"><div class="filter-bar"><input class="search-input" id="playlistSearch" type="search" placeholder="Rechercher une playlist, tag ou catégorie"><div class="filter-tabs" id="playlistFilters">${filterButtons(current)}</div></div></div>`;
+  const centerHtml = `<p class="section-intro">Recherche, filtre par catégorie et lance directement la bonne vidéo.</p>
+    <div class="playlist-grid" id="playlistGrid">${state.playlists.map(playlistCard).join("")}</div><div id="playlistEmpty"></div>${renderImportedVideosSection("playlists")}<pre class="code-box export-box" id="playlistXmlOutput" hidden></pre>`;
+  return renderShell({
+    active: "playlists",
+    icon: "ti-stack-2",
+    title: "Playlists dynamiques.",
+    subtitle: `${state.playlists.length} playlists · ${state.categories.length} catégories`,
+    topbarRight,
+    subheaderHtml,
+    centerHtml
+  }) + renderAdminDrawer();
 }
 
 function filterButtons(current) {
@@ -520,8 +829,9 @@ function playlistCard(list) {
   const image = first?.youtubeId ? thumb(first.youtubeId) : "";
   const search = `${list.title} ${list.description} ${categoryName(list.category)} ${list.tags.join(" ")}`.toLowerCase();
   const href = first ? `videos.html?playlist=${encodeURIComponent(list.id)}&video=${encodeURIComponent(first.id)}` : "playlists.html?admin=imports";
+  const catBadge = list.category ? `<span class="badge">${escapeHtml(categoryName(list.category))}</span>` : "";
   const imported = list.imported ? `<span class="tag">Importées</span>` : "";
-  return `<article class="playlist-card" data-playlist-card data-category="${list.category}" data-search="${escapeAttr(search)}"><div class="playlist-thumb" style="background-image:linear-gradient(180deg, transparent, rgba(7,10,18,.86)), url('${image}')"></div><div class="card-meta"><span class="badge">${categoryName(list.category)}</span><span class="level">${escapeHtml(list.level)}</span><span class="badge">${list.videos.length} vidéos</span>${imported}</div><h3>${escapeHtml(list.title)}</h3><p>${escapeHtml(list.description)}</p><div class="chip-row">${list.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div><a class="btn primary" href="${href}">Explorer</a></article>`;
+  return `<article class="playlist-card" data-playlist-card data-category="${escapeAttr(list.category || "")}" data-search="${escapeAttr(search)}"><div class="playlist-thumb" style="background-image:linear-gradient(180deg, transparent, rgba(7,10,18,.86)), url('${image}')"></div><div class="card-meta">${catBadge}<span class="level">${escapeHtml(list.level)}</span><span class="badge">${list.videos.length} vidéos</span>${imported}</div><h3>${escapeHtml(list.title)}</h3><p>${escapeHtml(list.description)}</p><div class="chip-row">${list.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div><a class="btn primary" href="${href}">Explorer</a></article>`;
 }
 
 function renderAdminDrawer() {
@@ -533,10 +843,12 @@ function renderAdminDrawer() {
   const selectedVideoId = selectedVideo?.id || "";
   const unorganizedImports = unorganizedImportedVideos();
   const importedStatus = importedStatusCounts();
+  const organizedVideos = organizedVideosForAdmin();
   return `<div class="admin-overlay" id="adminOverlay" hidden></div>
     <aside class="admin-drawer" id="adminDrawer" aria-label="Administration de la bibliothèque" hidden>
       <div class="admin-head"><div><p class="kicker">Administration</p><h2>Bibliothèque</h2></div><button class="btn ghost" id="closeAdminPanel">Fermer</button></div>
       <div class="admin-grid">
+        ${renderLibraryHierarchy()}
         <section class="admin-section">
           <div class="admin-section-head"><h3>Catégories</h3><span class="badge">${state.categories.length}</span></div>
           <form id="categoryAdminForm" class="studio-form">
@@ -560,7 +872,7 @@ function renderAdminDrawer() {
           <form id="playlistAdminForm" class="studio-form">
             <label>Playlist<select class="select-input" name="id" id="playlistAdminSelect"><option value="__new__">Nouvelle playlist</option>${state.playlists.map((list) => `<option value="${list.id}" ${list.id === selectedPlaylistId ? "selected" : ""}>${escapeHtml(list.title)}</option>`).join("")}</select></label>
             <label>Titre<input class="search-input" name="title" required></label>
-            <label>Catégorie<select class="select-input" name="category">${state.categories.map((cat) => `<option value="${cat.id}">${escapeHtml(cat.title)}</option>`).join("")}</select></label>
+            <label>Étiquette (optionnelle)<select class="select-input" name="category"><option value="">— Sans étiquette —</option>${state.categories.map((cat) => `<option value="${cat.id}">${escapeHtml(cat.title)}</option>`).join("")}</select></label>
             <label>Niveau<input class="search-input" name="level" value="Débutant"></label>
             <label>Tags<input class="search-input" name="tags"></label>
             <label>Description<textarea name="description"></textarea></label>
@@ -576,14 +888,23 @@ function renderAdminDrawer() {
             <label>Vidéo<select class="select-input" name="id" id="videoAdminSelect"><option value="__new__">Nouvelle vidéo</option>${(selectedPlaylist?.videos || []).map((video) => `<option value="${video.id}" ${video.id === selectedVideoId ? "selected" : ""}>${escapeHtml(video.title)}</option>`).join("")}</select></label>
             <label>Titre<input class="search-input" name="title" required></label>
             <label>Lien ou ID YouTube<input class="search-input" name="youtube" required></label>
-            <label>Déplacer vers<select class="select-input" name="targetPlaylistId">${state.playlists.map((list) => `<option value="${list.id}" ${list.id === selectedPlaylistId ? "selected" : ""}>${escapeHtml(list.title)}</option>`).join("")}</select></label>
+            <label>Catégorie cible<select class="select-input" name="targetCategoryId"><option value="__new__">Nouvelle catégorie</option>${state.categories.map((cat) => `<option value="${cat.id}" ${cat.id === selectedPlaylist?.category ? "selected" : ""}>${escapeHtml(cat.title)}</option>`).join("")}</select></label>
+            <label>Nom nouvelle catégorie<input class="search-input" name="newCategoryTitle" placeholder="Ex. Business IA"></label>
+            <label>Déplacer vers<select class="select-input" name="targetPlaylistId"><option value="__new__">Nouvelle playlist</option>${regularPlaylists().map((list) => `<option value="${list.id}" ${list.id === selectedPlaylistId ? "selected" : ""}>${escapeHtml(list.title)}</option>`).join("")}</select></label>
+            <label>Nom nouvelle playlist<input class="search-input" name="newPlaylistTitle" placeholder="Ex. À regarder — IA"></label>
             <label>Durée<input class="search-input" name="duration" value="0:00"></label>
             <label>Niveau<input class="search-input" name="level" value="Débutant"></label>
             <label>Tags<input class="search-input" name="tags"></label>
             <label>Description<textarea name="description"></textarea></label>
+            <div class="admin-notice" data-admin-notice hidden></div>
             <div class="admin-actions"><button class="btn primary">Enregistrer</button><button class="btn danger" type="button" data-admin-delete="video">Supprimer</button></div>
           </form>
           <div class="admin-list" id="videoAdminList">${(selectedPlaylist?.videos || []).map((video) => adminRow("video", video.id, video.title, video.duration || "0:00", selectedPlaylistId)).join("")}</div>
+        </section>
+
+        <section class="admin-section organized-admin-section">
+          <div class="admin-section-head"><h3>Vidéos déjà organisées</h3><span class="badge">${organizedVideos.length}</span></div>
+          <div class="organized-video-list">${organizedVideos.map(organizedVideoRow).join("") || `<div class="empty-state"><strong>Aucune vidéo organisée</strong></div>`}</div>
         </section>
 
         <section class="admin-section imported-admin-section">
@@ -591,9 +912,11 @@ function renderAdminDrawer() {
           <div class="status-strip"><span class="level">${unorganizedImports.length} non classées</span><span class="badge">${importedStatus.organized} déjà organisées</span></div>
           <form id="organizeImportedForm" class="studio-form">
             <label>Vidéo<select class="select-input" name="videoKey">${unorganizedImports.map((video) => `<option value="${importedVideoKey(video)}">${escapeHtml(video.title)}</option>`).join("")}</select></label>
-            <label>Catégorie<select class="select-input" name="categoryId">${state.categories.map((cat) => `<option value="${cat.id}">${escapeHtml(cat.title)}</option>`).join("")}</select></label>
+            <label>Catégorie<select class="select-input" name="categoryId"><option value="__new__">Nouvelle catégorie</option>${state.categories.map((cat) => `<option value="${cat.id}">${escapeHtml(cat.title)}</option>`).join("")}</select></label>
+            <label>Nom nouvelle catégorie<input class="search-input" name="newCategoryTitle" placeholder="Ex. Business IA"></label>
             <label>Playlist<select class="select-input" name="playlistId"><option value="__new__">Nouvelle playlist</option>${regularPlaylists().map((list) => `<option value="${list.id}">${escapeHtml(list.title)}</option>`).join("")}</select></label>
             <label>Nom nouvelle playlist<input class="search-input" name="newPlaylistTitle" placeholder="Ex. À regarder — IA"></label>
+            <div class="admin-notice" data-admin-notice hidden></div>
             <button class="btn primary">Ajouter à la playlist</button>
           </form>
           <div class="filter-tabs imported-status-tabs"><button class="tab-btn active" type="button" data-import-admin-status="all">Toutes</button><button class="tab-btn" type="button" data-import-admin-status="unorganized">Non classées</button><button class="tab-btn" type="button" data-import-admin-status="organized">Déjà organisées</button></div>
@@ -603,16 +926,53 @@ function renderAdminDrawer() {
     </aside>`;
 }
 
+function renderLibraryHierarchy() {
+  const playlists = state.playlists.filter((list) => !list.imported);
+  return `<section class="admin-section hierarchy-section">
+    <div class="admin-section-head"><h3>Playlists</h3><span class="badge">${playlists.length} playlists</span></div>
+    <div class="hierarchy-tree">
+      ${playlists.map((list) => {
+        const catLabel = list.category ? ` · ${escapeHtml(categoryName(list.category))}` : "";
+        return `<details class="hierarchy-playlist">
+          <summary><span><strong>${escapeHtml(list.title)}</strong><small>${list.videos.length} vidéos${catLabel}</small></span><button class="mini-btn" type="button" data-admin-edit="playlist" data-id="${escapeAttr(list.id)}">Éditer</button></summary>
+          <div class="hierarchy-videos">${list.videos.map((video) => `<div class="hierarchy-video"><span><strong>${escapeHtml(video.title)}</strong><small>${escapeHtml(video.youtubeId)} · ${escapeHtml(video.level || list.level || "À classer")}</small></span><span class="admin-row-actions"><a class="mini-btn" href="videos.html?playlist=${encodeURIComponent(list.id)}&video=${encodeURIComponent(video.id)}">Voir</a><button class="mini-btn" type="button" data-admin-edit="video" data-id="${escapeAttr(video.id)}" data-parent="${escapeAttr(list.id)}">Éditer</button></span></div>`).join("") || `<p class="meta">Aucune vidéo.</p>`}</div>
+        </details>`;
+      }).join("") || `<p class="meta">Aucune playlist.</p>`}
+    </div>
+  </section>`;
+}
+
 function adminRow(kind, id, title, meta, parentId = "") {
   return `<div class="admin-row" draggable="true" data-admin-row="${kind}" data-id="${escapeAttr(id)}" data-parent="${escapeAttr(parentId)}"><span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(meta)}</small></span><span class="admin-row-actions"><button class="mini-btn" type="button" data-admin-edit="${kind}" data-id="${escapeAttr(id)}" data-parent="${escapeAttr(parentId)}">Éditer</button><button class="mini-btn" type="button" data-admin-move="up" data-kind="${kind}" data-id="${escapeAttr(id)}" data-parent="${escapeAttr(parentId)}">↑</button><button class="mini-btn" type="button" data-admin-move="down" data-kind="${kind}" data-id="${escapeAttr(id)}" data-parent="${escapeAttr(parentId)}">↓</button></span></div>`;
 }
 
+function organizedVideoRow(video) {
+  return `<article class="organized-video-row" data-organized-video="${escapeAttr(video.id)}" data-parent="${escapeAttr(video.playlistId)}">
+    <div class="organized-video-main">
+      <span class="badge">${escapeHtml(categoryName(video.category))}</span>
+      <span class="badge">${escapeHtml(video.playlistTitle)}</span>
+      <strong>${escapeHtml(video.title)}</strong>
+      <small>${escapeHtml(video.duration || "0:00")} · ${(video.tags || []).map((tag) => `#${escapeHtml(tag)}`).join(" ") || "Sans tags"}</small>
+    </div>
+    <div class="admin-row-actions">
+      <button class="mini-btn" type="button" data-organized-move data-id="${escapeAttr(video.id)}" data-parent="${escapeAttr(video.playlistId)}">Déplacer</button>
+      <button class="mini-btn" type="button" data-admin-edit="video" data-id="${escapeAttr(video.id)}" data-parent="${escapeAttr(video.playlistId)}">Modifier</button>
+      <button class="mini-btn danger-mini" type="button" data-organized-remove data-id="${escapeAttr(video.id)}" data-parent="${escapeAttr(video.playlistId)}">Retirer</button>
+    </div>
+  </article>`;
+}
+
 function renderVideos() {
   const params = new URLSearchParams(location.search);
-  const playlist = getPlaylist(params.get("playlist") || state.active.playlistId) || firstPlaylist();
-  const video = getVideo(playlist, params.get("video") || state.active.videoId) || playlist.videos[0];
-  setActive(playlist?.id, video?.id, false);
-  return `<section class="video-page"><div class="page-head"><div><p class="kicker">Lecteur vidéo</p><h1>${escapeHtml(playlist.title)}</h1><p class="section-intro">Choisis une vidéo, lance la lecture et garde ta progression organisée par playlist.</p></div><select class="select-input" id="playlistSelect">${state.playlists.map((item) => `<option value="${item.id}" ${item.id === playlist.id ? "selected" : ""}>${escapeHtml(item.title)}</option>`).join("")}</select></div>
+  const playlistParam = params.get("playlist");
+  const videoParam = params.get("video");
+
+  if (playlistParam && videoParam) {
+    document.body.classList.remove("vd-mode");
+    const playlist = getPlaylist(playlistParam || state.active.playlistId) || firstPlaylist();
+    const video = getVideo(playlist, videoParam || state.active.videoId) || playlist.videos[0];
+    setActive(playlist?.id, video?.id, false);
+    return `<section class="video-page"><a href="videos.html" class="player-back-link">Tableau de bord</a><div class="page-head"><div><p class="kicker">Lecteur vidéo</p><h1>${escapeHtml(playlist.title)}</h1><p class="section-intro">Choisis une vidéo, lance la lecture et garde ta progression organisée par playlist.</p></div><select class="select-input" id="playlistSelect">${state.playlists.map((item) => `<option value="${item.id}" ${item.id === playlist.id ? "selected" : ""}>${escapeHtml(item.title)}</option>`).join("")}</select></div>
     <div class="player-layout">
       <article class="player-shell"><div class="player-frame" id="playerFrame">${renderPlayerPoster(video)}</div><div class="player-info" id="playerInfo">${videoInfo(video)}</div></article>
       <aside>
@@ -625,6 +985,41 @@ function renderVideos() {
         <div class="video-list" id="videoList">${playlist.videos.map((item) => videoRow(item, playlist.id, item.id === video.id)).join("")}</div><div id="videoEmpty"></div>
       </aside>
     </div>${renderImportedVideosSection("videos")}</section>`;
+  }
+
+  return renderVideoDashboard();
+}
+
+function renderVideoDashboard() {
+  const videos = allVideos();
+  const playlists = regularPlaylists();
+
+  const topbarRight = `<div class="vd-search">
+      <i class="ti ti-search"></i>
+      <input id="vdSearch" type="search" placeholder="Rechercher une vidéo…" autocomplete="off">
+    </div>
+    <button class="vd-add-btn" id="openAdminPanel"><i class="ti ti-pencil"></i> Organiser</button>`;
+
+  const subheaderHtml = `<div class="vd-filters" id="vdFilters">
+      <button class="vd-chip active" data-filter="all"><i class="ti ti-apps"></i> Toutes <span class="vd-chip-count">${videos.length}</span></button>
+      <button class="vd-chip" data-filter="library"><i class="ti ti-books"></i> Bibliothèque</button>
+      <button class="vd-chip" data-filter="imported"><i class="ti ti-download"></i> Importées</button>
+      ${state.categories.map((cat) => `<button class="vd-chip" data-filter="cat:${escapeAttr(cat.id)}"><i class="ti ti-tag"></i> ${escapeHtml(cat.title)}</button>`).join("")}
+    </div>`;
+
+  const centerHtml = `<div class="vd-grid" id="vdGrid">${videos.map(vdCard).join("")}</div>
+    <div id="vdEmpty"></div>`;
+
+  return renderShell({
+    active: "videos",
+    icon: "ti-player-play",
+    title: "Vidéos",
+    subtitle: `${videos.length} vidéos · ${playlists.length} playlists · ${state.categories.length} catégories`,
+    topbarRight,
+    subheaderHtml,
+    centerHtml,
+    rightHtml: renderPlaylistsList() + renderVideoAdminBox()
+  }) + `<div class="vd-toast" id="vdToast"><i class="ti ti-check" id="vdToastIcon"></i> <span id="vdToastMsg"></span></div>${renderAdminDrawer()}`;
 }
 
 function renderImportedVideosSection(context) {
@@ -653,7 +1048,7 @@ function importedVideoCard(video) {
   const search = `${video.title} ${video.description} ${categoryName(video.category)} ${video.source || ""} ${statusLabel} ${video.tags.join(" ")}`.toLowerCase();
   const source = sourceFolder(video.source);
   return `<article class="imported-video-card" data-imported-video data-category="${escapeAttr(video.category)}" data-source="${escapeAttr(source)}" data-status="${status}" data-search="${escapeAttr(search)}">
-    <img class="media-thumb" src="${thumb(video.youtubeId)}" alt="Miniature ${escapeAttr(video.title)}" loading="lazy">
+    <img class="media-thumb" src="${thumb(video.youtubeId)}" alt="Miniature ${escapeAttr(video.title)}" loading="lazy" onerror="this.style.opacity='0'">
     <div class="card-meta"><span class="badge">${escapeHtml(categoryName(video.category))}</span><span class="${organization ? "badge" : "level"}">${escapeHtml(statusLabel)}</span></div>
     <h3>${escapeHtml(video.title)}</h3>
     <p>${escapeHtml(source || video.source || "resources.xml")}</p>
@@ -663,14 +1058,14 @@ function importedVideoCard(video) {
 
 function renderPlayerPoster(video) {
   if (!video?.youtubeId) return `<div class="empty-state"><strong>ID YouTube invalide</strong><p>Ajoute une URL YouTube publique depuis l'administration.</p></div>`;
-  return `<div class="player-poster" style="background-image:url('${thumb(video.youtubeId, "maxresdefault")}')"><div class="play-stack"><button class="play-orb" data-load-youtube="${video.id}" aria-label="Lire ${escapeAttr(video.title)}">▶</button><strong>${escapeHtml(video.title)}</strong><small>Cliquer pour charger le lecteur YouTube</small></div></div>`;
+  return `<div class="player-poster" style="background-image:url('${thumb(video.youtubeId, "maxresdefault")}')"><div class="play-stack"><button class="play-orb" data-load-youtube="${video.id}" aria-label="Lire ${escapeAttr(video.title)}">▶</button><strong>${escapeHtml(video.title)}</strong><small>Cliquer pour charger le lecteur YouTube</small><a class="btn ghost player-yt-link" href="${youtubeWatchUrl(video)}" target="_blank" rel="noreferrer">Ouvrir sur YouTube ↗</a></div></div>`;
 }
 
 function loadYoutubeIntoFrame(video) {
   const frame = document.querySelector("#playerFrame");
   if (!frame || !video?.youtubeId) return;
   if (location.protocol === "file:") {
-    frame.innerHTML = `<div class="empty-state"><strong>Lecture indisponible ici</strong><p>Ouvre la vidéo sur YouTube ou lance VisionHub depuis le serveur local.</p><a class="btn primary" href="${youtubeWatchUrl(video)}" target="_blank" rel="noreferrer">Ouvrir sur YouTube</a></div>`;
+    frame.innerHTML = `<div class="empty-state"><strong>Lecture indisponible ici</strong><p>Ouvre la vidéo sur YouTube ou lance Lumen depuis le serveur local.</p><a class="btn primary" href="${youtubeWatchUrl(video)}" target="_blank" rel="noreferrer">Ouvrir sur YouTube</a></div>`;
     return;
   }
   const src = youtubeEmbedUrl(video.youtubeId);
@@ -688,36 +1083,108 @@ function videoRow(video, playlistId, isActive) {
   const search = `${video.title} ${video.description} ${video.level} ${video.topic || ""} ${video.domain || ""} ${video.intent || ""} ${video.tags.join(" ")}`.toLowerCase();
   const topic = video.topic ? `<span class="badge">${escapeHtml(video.topic)}</span>` : "";
   const domain = video.domain ? `<span class="badge">${escapeHtml(video.domain)}</span>` : "";
-  return `<button class="video-row ${isActive ? "active" : ""}" data-video-row data-playlist="${playlistId}" data-video="${video.id}" data-search="${escapeAttr(search)}"><img class="video-thumb" src="${thumb(video.youtubeId)}" alt="Miniature ${escapeAttr(video.title)}" loading="lazy"><span><h3>${escapeHtml(video.title)}</h3><p>${escapeHtml(video.description)}</p><span class="video-meta">${domain}${topic}<span class="badge">${escapeHtml(video.duration)}</span><span class="level">${escapeHtml(video.level)}</span></span></span></button>`;
+  return `<button class="video-row ${isActive ? "active" : ""}" data-video-row data-playlist="${playlistId}" data-video="${video.id}" data-search="${escapeAttr(search)}"><img class="video-thumb" src="${thumb(video.youtubeId)}" alt="Miniature ${escapeAttr(video.title)}" loading="lazy" onerror="this.style.opacity='0'"><span><h3>${escapeHtml(video.title)}</h3><p>${escapeHtml(video.description)}</p><span class="video-meta">${domain}${topic}<span class="badge">${escapeHtml(video.duration)}</span><span class="level">${escapeHtml(video.level)}</span></span></span></button>`;
 }
 
 function renderFiles() {
-  return `<section><div class="page-head"><div><p class="kicker">File OS</p><h1>Organisation des fichiers.</h1><p class="section-intro">Dossiers, notes, liens, tags, statuts, recherche et export versionnable.</p></div><button class="btn" id="exportWorkspace">Exporter XML</button></div>
-    <div class="filter-bar workspace-tools">
+  const topbarRight = `<button class="btn" id="exportWorkspace">Exporter XML</button>`;
+  const subheaderHtml = `<div class="vd-subbar"><div class="filter-bar workspace-tools">
       <input class="search-input" id="fileSearch" type="search" placeholder="Rechercher un dossier, lien, note, tag ou statut">
       <select class="select-input" id="fileTypeFilter"><option value="all">Tous les types</option><option value="video">Vidéos</option><option value="lien">Liens</option><option value="document">Documents</option><option value="note">Notes</option><option value="local">Fichiers locaux</option></select>
       <div class="filter-tabs" id="fileView"><button class="tab-btn active" data-view="grid">Grille</button><button class="tab-btn" data-view="list">Liste</button></div>
+    </div></div>`;
+  const centerHtml = `${renderRealFilesSection()}
+    <div class="file-grid" id="fileGrid">${state.files.map(folderCard).join("")}</div><div id="fileEmpty"></div><pre class="code-box export-box" id="workspaceOutput" hidden></pre>
+    <div class="studio-grid section">
+      <article class="studio-panel"><h3>Créer un dossier</h3><form id="folderForm" class="studio-form"><label>Nom<input class="search-input" name="title" required></label><label>Description<textarea name="description"></textarea></label><label>Tags<input class="search-input" name="tags" placeholder="Clients, Docs, Priorité"></label><button class="btn primary">Créer dossier</button></form></article>
+      <article class="studio-panel"><h3>Ajouter un item</h3><form id="fileForm" class="studio-form"><label>Dans<select class="select-input" name="folderId">${state.files.map((folder) => `<option value="${folder.id}">${escapeHtml(folder.title)}</option>`).join("")}</select></label><label>Titre<input class="search-input" name="title" required></label><label>Type<select class="select-input" name="type"><option>note</option><option>lien</option><option>document</option><option>table</option></select></label><label>URL<input class="search-input" name="url" placeholder="https://..."></label><label>Statut<input class="search-input" name="status" value="Actif"></label><label>Tags<input class="search-input" name="tags"></label><button class="btn primary">Ajouter item</button></form></article>
+    </div>`;
+  return renderShell({
+    active: "files",
+    icon: "ti-folder",
+    title: "Organisation des fichiers.",
+    subtitle: `${state.realFiles.length} fichiers · ${state.files.length} dossiers`,
+    topbarRight,
+    subheaderHtml,
+    centerHtml
+  });
+}
+
+function renderRealFilesSection() {
+  const types = ["all", "pdf", "image", "doc", "video", "zip", "other"];
+  const typeLabels = { all: "Tous", pdf: "PDF", image: "Images", doc: "Documents", video: "Vidéos", zip: "Archives", other: "Autres" };
+  const filterHtml = types.map((t) => `<button class="tab-btn ${t === "all" ? "active" : ""}" data-rf-type="${t}">${typeLabels[t]}</button>`).join("");
+  const listHtml = state.realFiles.map(realFileRow).join("") || `<div class="empty-state rf-empty"><i class="ti ti-file-off"></i><p>Aucun fichier. Déposez un fichier ci-dessous ou ajoutez-en un dans <code>data/files/</code>.</p></div>`;
+  return `<section class="rf-section">
+    <div class="rf-head">
+      <div><p class="kicker">Fichiers locaux</p><h2>Vrais fichiers <span class="badge">${state.realFiles.length}</span></h2></div>
+      <div class="filter-tabs" id="rfTypeFilter">${filterHtml}</div>
     </div>
-    <div class="workspace-layout">
-      <div><div class="file-grid" id="fileGrid">${state.files.map(folderCard).join("")}</div><div id="fileEmpty"></div></div>
-      <aside class="studio-panel"><h2>Ajouter localement</h2><form id="folderForm" class="studio-form"><label>Dossier<input class="search-input" name="title" required></label><label>Description<textarea name="description"></textarea></label><label>Tags<input class="search-input" name="tags" placeholder="Clients, Docs, Priorité"></label><button class="btn primary">Créer dossier</button></form><hr class="soft-line"><form id="fileForm" class="studio-form"><label>Dans<select class="select-input" name="folderId">${state.files.map((folder) => `<option value="${folder.id}">${escapeHtml(folder.title)}</option>`).join("")}</select></label><label>Titre<input class="search-input" name="title" required></label><label>Type<select class="select-input" name="type"><option>note</option><option>lien</option><option>document</option><option>table</option></select></label><label>URL<input class="search-input" name="url" placeholder="https://..."></label><label>Statut<input class="search-input" name="status" value="Actif"></label><label>Tags<input class="search-input" name="tags"></label><button class="btn primary">Ajouter item</button></form></aside>
-    </div><pre class="code-box export-box" id="workspaceOutput" hidden></pre></section>`;
+    <div class="rf-list" id="rfList">${listHtml}</div>
+    <div class="rf-dropzone" id="rfDropzone">
+      <i class="ti ti-upload"></i>
+      <span>Déposez un fichier ici pour l'enregistrer dans le manifest</span>
+      <small>Le fichier doit être copié dans <code>data/files/</code> et commité pour être accessible.</small>
+    </div>
+  </section>`;
+}
+
+function realFileRow(file) {
+  const icon = realFileIcon(file.type);
+  const localBadge = file.local ? `<span class="tag warn">À commiter</span>` : "";
+  const openBtn = file.path ? `<a class="mini-btn" href="${escapeAttr(file.path)}" target="_blank" rel="noreferrer"><i class="ti ti-eye"></i> Ouvrir</a>` : "";
+  const dlBtn = file.path ? `<a class="mini-btn" href="${escapeAttr(file.path)}" download><i class="ti ti-download"></i> Télécharger</a>` : "";
+  const meta = [file.size, file.date].filter(Boolean).join(" · ");
+  return `<div class="rf-row" data-rf-row data-rf-type="${escapeAttr(file.type)}" data-rf-id="${escapeAttr(file.id)}">
+    <span class="rf-icon rf-${escapeAttr(file.type)}"><i class="ti ${icon}"></i></span>
+    <span class="rf-info">
+      <strong>${escapeHtml(file.title)}</strong>
+      ${meta ? `<small>${escapeHtml(meta)}</small>` : ""}
+      ${localBadge}
+    </span>
+    <span class="rf-actions">${openBtn}${dlBtn}</span>
+  </div>`;
+}
+
+function realFileIcon(type) {
+  const icons = { pdf: "ti-file-type-pdf", image: "ti-photo", doc: "ti-file-text", video: "ti-video", zip: "ti-file-zip" };
+  return icons[type] || "ti-file";
+}
+
+function realFileTypeFromMime(mime, name) {
+  if (mime.startsWith("image/")) return "image";
+  if (mime === "application/pdf" || name.endsWith(".pdf")) return "pdf";
+  if (mime.startsWith("video/")) return "video";
+  if (mime.match(/zip|rar|7z|tar|gz/)) return "zip";
+  if (mime.match(/word|document|text/) || name.match(/\.(doc|docx|txt|md|odt)$/)) return "doc";
+  return "other";
 }
 
 function renderFinance() {
   const revenue = financeTotal("revenue");
   const expenses = financeTotal("expense");
   const balance = revenue - expenses;
-  return `<section><div class="page-head"><div><p class="kicker">Finance cockpit</p><h1>Suivi finance léger.</h1><p class="section-intro">Revenus, dépenses, budget, objectifs et export. Ce module n’est pas une comptabilité officielle.</p></div><div class="hero-actions"><button class="btn" id="exportFinanceCsv">CSV</button><button class="btn" id="exportFinanceXml">XML</button></div></div>
-    <div class="grid-3"><article class="metric-card"><span class="eyebrow">Revenus</span><strong>${money(revenue)}</strong><p>Total des entrées suivies.</p></article><article class="metric-card"><span class="eyebrow">Dépenses</span><strong>${money(expenses)}</strong><p>Total des sorties prévues ou payées.</p></article><article class="metric-card"><span class="eyebrow">Solde</span><strong>${money(balance)}</strong><p>Budget disponible estimé.</p></article></div>
-    <div class="finance-layout section"><article class="studio-panel"><h2>Transactions</h2><form id="transactionForm" class="studio-form compact-form"><select class="select-input" name="type"><option value="revenue">Revenu</option><option value="expense">Dépense</option></select><input class="search-input" name="title" placeholder="Libellé" required><input class="search-input" name="category" placeholder="Catégorie" required><input class="search-input" name="amount" type="number" min="0" step="0.01" placeholder="Montant" required><input class="search-input" name="date" type="date" required><button class="btn primary">Ajouter</button></form><div class="transaction-list">${state.finance.transactions.map(transactionRow).join("") || `<div class="empty-state"><strong>Aucune transaction</strong></div>`}</div></article>
-    <aside class="studio-panel"><h2>Objectifs</h2><form id="goalForm" class="studio-form"><label>Objectif<input class="search-input" name="title" required></label><label>Cible<input class="search-input" name="target" type="number" min="0" step="0.01" required></label><label>Actuel<input class="search-input" name="current" type="number" min="0" step="0.01" value="0"></label><label>Échéance<input class="search-input" name="deadline" type="date"></label><button class="btn primary">Ajouter objectif</button></form><div class="goal-list">${state.finance.goals.map(goalCard).join("") || `<p class="meta">Ajoute un objectif pour suivre sa progression.</p>`}</div></aside></div><pre class="code-box export-box" id="financeOutput" hidden></pre></section>`;
+  const topbarRight = `<button class="btn" id="exportFinanceCsv">CSV</button><button class="btn" id="exportFinanceXml">XML</button>`;
+  const centerHtml = `<div class="grid-3"><article class="metric-card"><span class="eyebrow">Revenus</span><strong>${money(revenue)}</strong><p>Total des entrées suivies.</p></article><article class="metric-card"><span class="eyebrow">Dépenses</span><strong>${money(expenses)}</strong><p>Total des sorties prévues ou payées.</p></article><article class="metric-card"><span class="eyebrow">Solde</span><strong>${money(balance)}</strong><p>Budget disponible estimé.</p></article></div>
+    <div class="studio-grid section">
+      <article class="studio-panel"><h2>Transactions</h2><form id="transactionForm" class="studio-form compact-form"><select class="select-input" name="type"><option value="revenue">Revenu</option><option value="expense">Dépense</option></select><input class="search-input" name="title" placeholder="Libellé" required><input class="search-input" name="category" placeholder="Catégorie" required><input class="search-input" name="amount" type="number" min="0" step="0.01" placeholder="Montant" required><input class="search-input" name="date" type="date" required><button class="btn primary">Ajouter</button></form><div class="transaction-list">${state.finance.transactions.map(transactionRow).join("") || `<div class="empty-state"><strong>Aucune transaction</strong></div>`}</div></article>
+      <article class="studio-panel"><h2>Objectifs</h2><form id="goalForm" class="studio-form"><label>Objectif<input class="search-input" name="title" required></label><label>Cible<input class="search-input" name="target" type="number" min="0" step="0.01" required></label><label>Actuel<input class="search-input" name="current" type="number" min="0" step="0.01" value="0"></label><label>Échéance<input class="search-input" name="deadline" type="date"></label><button class="btn primary">Ajouter objectif</button></form><div class="goal-list">${state.finance.goals.map(goalCard).join("") || `<p class="meta">Ajoute un objectif pour suivre sa progression.</p>`}</div></article>
+    </div>
+    <pre class="code-box export-box" id="financeOutput" hidden></pre>`;
+  return renderShell({
+    active: "finance",
+    icon: "ti-wallet",
+    title: "Suivi finance léger.",
+    subtitle: `Solde ${money(balance)}`,
+    topbarRight,
+    centerHtml
+  });
 }
 
 function folderCard(folder) {
   const search = `${folder.title} ${folder.description} ${folder.status} ${folder.tags.join(" ")} ${folder.files.map((file) => `${file.title} ${file.type} ${file.status} ${file.tags?.join(" ")} ${file.note}`).join(" ")}`.toLowerCase();
   const hasPages = folder.files.length > 5;
-  return `<article class="file-card" data-file-card data-resource-page="0" data-search="${escapeAttr(search)}"><div class="file-card-head"><span class="category-icon">${escapeHtml(folder.icon)}</span><span class="level">${escapeHtml(folder.status || "Actif")}</span></div><h3>${escapeHtml(folder.title)}</h3><p>${escapeHtml(folder.description || "Dossier de travail VisionHub.")}</p><div class="chip-row">${resourceTypeSummary(folder.files).map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("")}${folder.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div><div class="resource-list">${folder.files.map((file, index) => resourceRow(file, index)).join("") || `<p class="meta">Aucun item.</p>`}</div>${hasPages ? `<div class="resource-pager"><button class="mini-btn" type="button" data-resource-page-prev>←</button><span data-resource-page-label>1 / ${Math.ceil(folder.files.length / 5)}</span><button class="mini-btn" type="button" data-resource-page-next>→</button></div>` : ""}</article>`;
+  return `<article class="file-card" data-file-card data-resource-page="0" data-search="${escapeAttr(search)}"><div class="file-card-head"><span class="category-icon">${escapeHtml(folder.icon)}</span><span class="level">${escapeHtml(folder.status || "Actif")}</span></div><h3>${escapeHtml(folder.title)}</h3><p>${escapeHtml(folder.description || "Dossier de travail Lumen.")}</p><div class="chip-row">${resourceTypeSummary(folder.files).map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("")}${folder.tags.map((tag) => `<span class="tag">${escapeHtml(tag)}</span>`).join("")}</div><div class="resource-list">${folder.files.map((file, index) => resourceRow(file, index)).join("") || `<p class="meta">Aucun item.</p>`}</div>${hasPages ? `<div class="resource-pager"><button class="mini-btn" type="button" data-resource-page-prev>←</button><span data-resource-page-label>1 / ${Math.ceil(folder.files.length / 5)}</span><button class="mini-btn" type="button" data-resource-page-next>→</button></div>` : ""}</article>`;
 }
 
 function resourceRow(file, index = 0) {
@@ -738,27 +1205,196 @@ function goalCard(goal) {
 }
 
 function renderAbout() {
-  return `<section><div class="page-head"><div><p class="kicker">Architecture produit</p><h1>Un OS personnel modulaire, vendable et évolutif.</h1><p class="section-intro">La version statique pose les bases : pages séparées, XML, localStorage, design premium. La suite peut migrer vers SQLite, Supabase ou PostgreSQL.</p></div></div><div class="grid-3">${appCard("Phase 1", "Stabiliser vidéo + XML + GitHub Pages.", "videos.html")}${appCard("Phase 2", "File OS, ressources, notes et tags avancés.", "files.html")}${appCard("Phase 3", "Finance, CRM, projets et futur backend.", "finance.html")}</div></section>`;
+  const libraryVideos = allVideos().filter((v) => !v.imported);
+  const importedVideos = allVideos().filter((v) => v.imported);
+  const playlists = regularPlaylists();
+  const balance = financeTotal("revenue") - financeTotal("expense");
+  const lsKeys = Object.values(APP.storage);
+  const lsSize = lsKeys.reduce((acc, key) => acc + (localStorage.getItem(key)?.length || 0), 0);
+
+  const stats = [
+    { icon: "ti-player-play", value: libraryVideos.length, label: "Vidéos", sub: `${playlists.length} playlists · ${state.categories.length} catégories`, cc: "pc1" },
+    { icon: "ti-download", value: importedVideos.length, label: "Importées", sub: `${importedStatusCounts().unorganized} non classées`, cc: "pc2" },
+    { icon: "ti-folder", value: state.realFiles.length, label: "Fichiers", sub: `${state.files.length} dossiers de notes`, cc: "pc3" },
+    { icon: "ti-wallet", value: money(balance), label: "Solde", sub: `${state.finance.transactions.length} transactions`, cc: "pc4" },
+  ];
+
+  const maxCatCount = Math.max(...state.categories.map((cat) => libraryVideos.filter((v) => v.category === cat.id).length), 1);
+  const catRows = state.categories.map((cat) => {
+    const count = libraryVideos.filter((v) => v.category === cat.id).length;
+    const pct = Math.round((count / maxCatCount) * 100);
+    return `<div class="db-cat-row">
+      <span class="db-cat-name">${escapeHtml(cat.title)}</span>
+      <div class="db-bar"><div class="db-bar-fill" style="width:${pct}%"></div></div>
+      <span class="db-cat-count">${count}</span>
+    </div>`;
+  }).join("") || `<p class="meta">Aucune catégorie.</p>`;
+
+  const settingRow = (title, sub, btnId, btnLabel, danger = false) =>
+    `<div class="db-setting-row"><span><strong>${title}</strong><small>${sub}</small></span><button class="btn${danger ? " danger" : ""}" id="${btnId}">${btnLabel}</button></div>`;
+
+  const centerHtml = `
+    <div class="db-stats">
+      ${stats.map((s) => `<article class="db-stat-card">
+        <div class="db-stat-icon ${s.cc}"><i class="ti ${s.icon}"></i></div>
+        <div class="db-stat-info">
+          <strong class="db-stat-value">${escapeHtml(String(s.value))}</strong>
+          <span class="db-stat-label">${s.label}</span>
+          <small>${escapeHtml(s.sub)}</small>
+        </div>
+      </article>`).join("")}
+    </div>
+
+    <div class="db-grid section">
+      <article class="content-card">
+        <h3>Vidéos par catégorie</h3>
+        <div class="db-cats">${catRows}</div>
+      </article>
+      <article class="content-card">
+        <h3>Réglages</h3>
+        <div class="db-settings">
+          ${settingRow("Bibliothèque", "Copie library.xml dans le presse-papiers", "dbExportLibrary", "Copier XML")}
+          ${settingRow("Workspace", "Copie workspace.xml", "dbExportWorkspace", "Copier XML")}
+          ${settingRow("Finance", "Copie finance.xml", "dbExportFinance", "Copier XML")}
+          <div class="db-sep"></div>
+          ${settingRow("Cache local", `${(lsSize / 1024).toFixed(1)} KB · ${lsKeys.length} clés localStorage`, "dbClearCache", "Vider le cache", true)}
+          <div class="db-setting-row db-cloud-row">
+            <span><strong>Cloud Supabase</strong><small>Synchronisation multi-appareils — Phase C</small></span>
+            <button class="btn" disabled>Bientôt</button>
+          </div>
+        </div>
+        <pre class="code-box export-box" id="dbXmlOutput" hidden></pre>
+      </article>
+    </div>`;
+
+  return renderShell({
+    active: "about",
+    icon: "ti-gauge",
+    title: "Tableau de bord.",
+    subtitle: `${libraryVideos.length} vidéos · ${playlists.length} playlists · ${state.realFiles.length} fichiers`,
+    centerHtml
+  });
 }
 
 function bindPage() {
   bindFavorites();
+  if (page === "home")      bindHome();
   if (page === "playlists") bindPlaylistFilters();
-  if (page === "videos") bindVideos();
-  if (page === "files") bindFiles();
-  if (page === "finance") bindFinance();
+  if (page === "videos")    bindVideos();
+  if (page === "files")     bindFiles();
+  if (page === "finance")   bindFinance();
+  if (page === "about")     bindDashboard();
 }
 
-function bindHeader() {
-  document.querySelector("#menuToggle")?.addEventListener("click", () => {
-    const nav = document.querySelector("#mainNav");
-    nav.classList.toggle("open");
-    document.querySelector("#menuToggle").setAttribute("aria-expanded", nav.classList.contains("open"));
+function bindDashboard() {
+  const dbToast = (msg, type = "success") => {
+    let t = document.querySelector("#dbToast");
+    if (!t) { t = Object.assign(document.createElement("div"), { id: "dbToast" }); document.body.appendChild(t); }
+    t.textContent = msg; t.className = `vd-toast ${type} show`;
+    clearTimeout(t._tt); t._tt = setTimeout(() => t.classList.remove("show"), 2800);
+  };
+  const copyXml = (xml, label) => {
+    navigator.clipboard.writeText(xml)
+      .then(() => dbToast(`${label} copié dans le presse-papiers !`))
+      .catch(() => {
+        const out = document.querySelector("#dbXmlOutput");
+        if (out) { out.textContent = xml; out.hidden = false; }
+        dbToast("Copiez depuis le panneau ci-dessous", "warn");
+      });
+  };
+  document.querySelector("#dbExportLibrary")?.addEventListener("click", () => copyXml(exportXml(), "library.xml"));
+  document.querySelector("#dbExportWorkspace")?.addEventListener("click", () => copyXml(exportWorkspaceXml(), "workspace.xml"));
+  document.querySelector("#dbExportFinance")?.addEventListener("click", () => copyXml(exportFinanceXml(), "finance.xml"));
+  document.querySelector("#dbClearCache")?.addEventListener("click", () => {
+    if (!confirm("Vider le cache local ?\nVos modifications locales seront perdues. Les fichiers XML de données sont préservés.")) return;
+    Object.values(APP.storage).forEach((key) => localStorage.removeItem(key));
+    location.reload();
   });
 }
 
-function markActiveNav() {
-  document.querySelector(`[data-page-link="${page}"]`)?.classList.add("active");
+function bindHome() {
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const revealIO = new IntersectionObserver((entries) => {
+    entries.forEach((entry, i) => {
+      if (entry.isIntersecting) {
+        setTimeout(() => entry.target.classList.add('in'), i * 60);
+        revealIO.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(el => revealIO.observe(el));
+
+  document.querySelectorAll('[data-spotlight]').forEach(card => {
+    card.addEventListener('mousemove', e => {
+      const r = card.getBoundingClientRect();
+      card.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+      card.style.setProperty('--my', (e.clientY - r.top) + 'px');
+    });
+  });
+
+  if (reduced) {
+    document.querySelectorAll('.reveal').forEach(el => el.classList.add('in'));
+    return;
+  }
+
+  const hero = document.getElementById('homeHero');
+  const glow = document.getElementById('homeGlow');
+  const cv   = document.getElementById('homeCanvas');
+  if (!hero || !glow || !cv) return;
+
+  let gx = window.innerWidth / 2, gy = window.innerHeight * 0.4, tx = gx, ty = gy;
+  hero.addEventListener('mousemove', e => { tx = e.clientX; ty = e.clientY; });
+  (function animGlow() {
+    gx += (tx - gx) * 0.08;
+    gy += (ty - gy) * 0.08;
+    glow.style.left = gx + 'px';
+    glow.style.top  = gy + 'px';
+    requestAnimationFrame(animGlow);
+  })();
+
+  const ctx2d = cv.getContext('2d');
+  let W, H, dots = [], mx = -999, my = -999;
+  function resizeCanvas() {
+    W = cv.width  = hero.offsetWidth;
+    H = cv.height = hero.offsetHeight;
+    const gap = 46;
+    dots = [];
+    for (let x = gap / 2; x < W; x += gap)
+      for (let y = gap / 2; y < H; y += gap)
+        dots.push({ bx: x, by: y });
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+  hero.addEventListener('mousemove', e => {
+    const r = cv.getBoundingClientRect();
+    mx = e.clientX - r.left;
+    my = e.clientY - r.top;
+  });
+  hero.addEventListener('mouseleave', () => { mx = -999; my = -999; });
+  (function draw() {
+    ctx2d.clearRect(0, 0, W, H);
+    for (const d of dots) {
+      const dx = d.bx - mx, dy = d.by - my, dist = Math.hypot(dx, dy);
+      const R = 150;
+      let px = d.bx, py = d.by, size = 1.3, a = 0.18;
+      if (dist < R) {
+        const f = 1 - dist / R;
+        const ang = Math.atan2(dy, dx);
+        px = d.bx + Math.cos(ang) * f * 14;
+        py = d.by + Math.sin(ang) * f * 14;
+        size = 1.3 + f * 2.4;
+        a = 0.18 + f * 0.7;
+        ctx2d.fillStyle = `rgba(${110 + (f * 60 | 0)},${86 + (f * 90 | 0)},247,${a.toFixed(2)})`;
+      } else {
+        ctx2d.fillStyle = `rgba(150,155,180,${a})`;
+      }
+      ctx2d.beginPath();
+      ctx2d.arc(px, py, size, 0, 6.283);
+      ctx2d.fill();
+    }
+    requestAnimationFrame(draw);
+  })();
 }
 
 function bindFavorites() {
@@ -844,9 +1480,13 @@ function bindCategoryAdmin() {
   document.querySelector("[data-admin-delete='category']")?.addEventListener("click", () => {
     const id = document.querySelector("#categoryAdminSelect")?.value;
     if (!id || id === "__new__") return;
-    if (state.categories.length <= 1) { alert("Il faut conserver au moins une catégorie."); return; }
+    const categoryPlaylists = playlistsByCategory(id);
+    if (categoryPlaylists.length) {
+      const confirmed = confirm(`Cette étiquette est utilisée par ${categoryPlaylists.length} playlist(s). La supprimer retirera l'étiquette de ces playlists (les playlists et vidéos sont conservées). Continuer ?`);
+      if (!confirmed) return;
+    }
     state.categories = state.categories.filter((cat) => cat.id !== id);
-    state.playlists = state.playlists.filter((list) => list.category !== id);
+    state.playlists = state.playlists.map((list) => list.category === id ? { ...list, category: "" } : list);
     saveAdminSelection({ categoryId: state.categories[0]?.id || "", playlistId: state.playlists[0]?.id || "", videoId: "" });
     persistAdminChanges(true, true);
   });
@@ -874,7 +1514,7 @@ function bindPlaylistAdmin() {
     const form = new FormData(event.currentTarget);
     const existingId = form.get("id");
     const title = clean(form.get("title"));
-    if (!title || !form.get("category")) return;
+    if (!title) return;
     const previous = state.playlists.find((list) => list.id === existingId);
     const next = {
       id: existingId === "__new__" ? uniqueAdminId(slug(title), state.playlists) : existingId,
@@ -913,12 +1553,16 @@ function bindVideoAdmin() {
   document.querySelector("#videoAdminForm")?.addEventListener("submit", (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
     const sourceList = getPlaylist(form.get("playlistId"));
-    const targetList = getPlaylist(form.get("targetPlaylistId"));
     const youtubeId = normalizeYoutubeId(form.get("youtube"));
     const title = clean(form.get("title"));
-    if (!sourceList || !targetList || !youtubeId || !title) return;
+    if (!sourceList || !youtubeId || !title) return;
     const existingId = form.get("id");
+    const targetList = resolveTargetPlaylist(form, sourceList.category);
+    if (!targetList) { setAdminNotice(formElement, "Choisis une playlist cible ou crée une nouvelle playlist."); return; }
+    const duplicate = targetList.videos.find((video) => video.youtubeId === youtubeId && video.id !== existingId);
+    if (duplicate) { setAdminNotice(formElement, `Cette vidéo existe déjà dans la playlist ${targetList.title}.`); return; }
     const next = {
       id: existingId === "__new__" ? uniqueAdminId(slug(title), targetList.videos) : existingId,
       playlistId: targetList.id,
@@ -933,6 +1577,7 @@ function bindVideoAdmin() {
     state.playlists.forEach((list) => {
       list.videos = list.videos.filter((video) => video.id !== existingId);
     });
+    targetList.videos = targetList.videos.filter((video) => video.youtubeId !== next.youtubeId);
     targetList.videos.push(next);
     saveAdminSelection({ playlistId: targetList.id, videoId: next.id });
     persistAdminChanges(true, true);
@@ -957,25 +1602,16 @@ function bindImportedAdmin() {
   document.querySelector("#organizeImportedForm")?.addEventListener("submit", (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
     const video = importedVideosForUi().find((item) => importedVideoKey(item) === form.get("videoKey"));
     if (!video) return;
 
-    let targetList = getPlaylist(form.get("playlistId"));
-    if (form.get("playlistId") === "__new__") {
-      const categoryId = form.get("categoryId") || video.category || state.categories[0]?.id;
-      const title = clean(form.get("newPlaylistTitle")) || `À organiser — ${categoryName(categoryId)}`;
-      targetList = {
-        id: uniqueAdminId(slug(title), state.playlists),
-        title,
-        description: "Playlist créée localement depuis les vidéos importées.",
-        category: categoryId,
-        level: "À classer",
-        tags: ["Importées"],
-        videos: []
-      };
-      state.playlists.push(targetList);
+    const targetList = resolveTargetPlaylist(form, video.category);
+    if (!targetList || targetList.imported) { setAdminNotice(formElement, "Choisis une playlist cible ou crée une nouvelle playlist."); return; }
+    if (targetList.videos.some((item) => item.youtubeId === video.youtubeId)) {
+      setAdminNotice(formElement, `Cette vidéo existe déjà dans la playlist ${targetList.title}.`);
+      return;
     }
-    if (!targetList || targetList.imported) return;
 
     const nextVideo = {
       ...video,
@@ -984,7 +1620,6 @@ function bindImportedAdmin() {
       category: targetList.category,
       imported: false
     };
-    targetList.videos = targetList.videos.filter((item) => item.youtubeId !== nextVideo.youtubeId);
     targetList.videos.push(nextVideo);
     regularPlaylists().forEach((list) => {
       if (list.id !== targetList.id) list.videos = list.videos.filter((item) => item.youtubeId !== nextVideo.youtubeId);
@@ -1001,6 +1636,18 @@ function filterImportedAdmin(status) {
 }
 
 function bindAdminRows() {
+  document.querySelectorAll("[data-organized-move]").forEach((button) => button.addEventListener("click", () => {
+    saveAdminSelection({ playlistId: button.dataset.parent, videoId: button.dataset.id });
+    fillVideoForm(button.dataset.parent, button.dataset.id);
+    document.querySelector("#videoAdminForm")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }));
+  document.querySelectorAll("[data-organized-remove]").forEach((button) => button.addEventListener("click", () => {
+    const playlist = getPlaylist(button.dataset.parent);
+    if (!playlist) return;
+    playlist.videos = playlist.videos.filter((video) => video.id !== button.dataset.id);
+    saveAdminSelection({ playlistId: playlist.id, videoId: "" });
+    persistAdminChanges(true, false);
+  }));
   document.querySelectorAll("[data-admin-edit]").forEach((button) => button.addEventListener("click", () => {
     const kind = button.dataset.adminEdit;
     if (kind === "category") saveAdminSelection({ categoryId: button.dataset.id });
@@ -1044,6 +1691,12 @@ function filterPlaylists() {
 }
 
 function bindVideos() {
+  const params = new URLSearchParams(location.search);
+  if (params.get("playlist") && params.get("video")) bindVideoPlayer();
+  else bindVideoDashboard();
+}
+
+function bindVideoPlayer() {
   document.querySelector("#playlistSelect")?.addEventListener("change", (event) => {
     const list = getPlaylist(event.target.value);
     const first = list?.videos?.[0];
@@ -1081,6 +1734,190 @@ function bindVideos() {
 
   document.querySelector("#videoSearch")?.addEventListener("input", renderFilteredVideoList);
   bindImportedFilters();
+}
+
+function bindVideoDashboard() {
+  bindAdminPanel();
+
+  document.querySelector("#vdOpenAdmin2")?.addEventListener("click", () => {
+    const drawer = document.querySelector("#adminDrawer");
+    const overlay = document.querySelector("#adminOverlay");
+    if (drawer && overlay) { drawer.hidden = false; overlay.hidden = false; document.body.classList.add("admin-open"); }
+  });
+
+  document.querySelector("#vdSearch")?.addEventListener("input", filterVdGrid);
+
+  document.querySelector("#vdFilters")?.addEventListener("click", (e) => {
+    const chip = e.target.closest("[data-filter]");
+    if (!chip) return;
+    document.querySelectorAll(".vd-chip").forEach((c) => c.classList.remove("active"));
+    chip.classList.add("active");
+    filterVdGrid();
+  });
+
+
+  let dragged = null;
+  document.querySelectorAll("[data-vcard]").forEach((card) => {
+    card.addEventListener("dragstart", (e) => {
+      dragged = card;
+      card.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+    });
+    card.addEventListener("dragend", () => { card.classList.remove("dragging"); dragged = null; });
+  });
+
+  document.querySelectorAll("[data-drop-playlist-id]").forEach((plEl) => {
+    plEl.addEventListener("dragover", (e) => { e.preventDefault(); plEl.classList.add("drop-over"); });
+    plEl.addEventListener("dragleave", () => plEl.classList.remove("drop-over"));
+    plEl.addEventListener("drop", (e) => {
+      e.preventDefault();
+      plEl.classList.remove("drop-over");
+      if (!dragged) return;
+      const targetPlaylistId = plEl.dataset.dropPlaylistId;
+      const srcPlaylist = getPlaylist(dragged.dataset.playlistId);
+      const video = getVideo(srcPlaylist, dragged.dataset.videoId);
+      if (!video) return;
+      const result = addVideoToPlaylist(video, targetPlaylistId);
+      if (result.added) {
+        const countEl = document.querySelector(`[data-pl-count="${CSS.escape(targetPlaylistId)}"]`);
+        if (countEl) countEl.textContent = String(parseInt(countEl.textContent || "0") + 1);
+      }
+      showVdToast(result.message, result.added ? "success" : "warn");
+    });
+  });
+
+  document.querySelector("#quickPlaylistForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const name = clean(form.get("name"));
+    const category = form.get("category") || "";
+    if (!name) return;
+    const id = uniqueAdminId(slug(name), state.playlists);
+    const duplicate = state.playlists.find((p) => slug(p.title) === slug(name));
+    if (duplicate) { showVdToast(`La playlist « ${duplicate.title} » existe déjà`, "warn"); return; }
+    state.playlists.push({ id, title: name, description: "", category, level: "Débutant", tags: [], videos: [] });
+    saveLibraryOverride();
+    e.currentTarget.reset();
+    showVdToast(`Playlist « ${name} » créée ✓`, "success");
+  });
+
+  document.querySelector("#quickVideoForm")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const url = (form.get("url") || "").trim();
+    const playlistId = form.get("playlist");
+    const youtubeId = normalizeYoutubeId(url);
+    if (!youtubeId) { showVdToast("Lien YouTube invalide", "warn"); return; }
+    if (!playlistId) { showVdToast("Choisir une playlist d'abord", "warn"); return; }
+    const btn = document.querySelector("#quickVideoBtn");
+    if (btn) { btn.disabled = true; btn.innerHTML = `<i class="ti ti-loader"></i>`; }
+    let title = `Vidéo YouTube ${youtubeId}`;
+    try {
+      const res = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${youtubeId}&format=json`);
+      if (res.ok) { const data = await res.json(); if (data.title) title = data.title; }
+    } catch (_) {}
+    if (btn) { btn.disabled = false; btn.innerHTML = `<i class="ti ti-plus"></i>`; }
+    const result = addVideoToPlaylist({ youtubeId, title, id: uniqueAdminId(slug(title), allVideos()) }, playlistId);
+    showVdToast(result.message, result.added ? "success" : "warn");
+    if (result.added) e.currentTarget.reset();
+  });
+
+  document.querySelector("#importPlaylistForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const text = (form.get("text") || "").trim();
+    const playlistId = form.get("playlist");
+    if (!text) { showVdToast("Colle le texte du script yt-dlp d'abord", "warn"); return; }
+    if (!playlistId) { showVdToast("Choisir une playlist cible", "warn"); return; }
+    const lines = text.split("\n").filter((l) => l.includes(" | ") && !l.startsWith("#"));
+    if (!lines.length) { showVdToast("Aucune ligne valide (format attendu : titre | youtubeId)", "warn"); return; }
+    let added = 0, skipped = 0;
+    lines.forEach((line) => {
+      const idx = line.lastIndexOf(" | ");
+      if (idx < 0) return;
+      const title = line.slice(0, idx).trim();
+      const youtubeId = line.slice(idx + 3).trim();
+      if (!title || !youtubeId || youtubeId.length < 5) return;
+      const result = addVideoToPlaylist({ youtubeId, title, id: uniqueAdminId(slug(title), allVideos()) }, playlistId);
+      result.added ? added++ : skipped++;
+    });
+    if (added > 0) e.currentTarget.reset();
+    const msg = added > 0
+      ? `${added} vidéo(s) ajoutée(s)${skipped > 0 ? ` · ${skipped} doublon(s) ignoré(s)` : ""} ✓`
+      : `Toutes les vidéos sont déjà dans la playlist (${skipped} doublon(s))`;
+    showVdToast(msg, added > 0 ? "success" : "warn");
+  });
+
+  document.querySelector("#vdExportXml")?.addEventListener("click", () => {
+    const out = document.querySelector("#vdXmlOutput");
+    if (!out) return;
+    out.textContent = exportXml();
+    out.hidden = false;
+    showVdToast("XML généré — copiez le contenu ci-dessous", "success");
+  });
+
+  document.querySelector("#vdCopyXml")?.addEventListener("click", () => {
+    const xml = exportXml();
+    navigator.clipboard.writeText(xml)
+      .then(() => showVdToast("XML copié dans le presse-papiers !", "success"))
+      .catch(() => {
+        const out = document.querySelector("#vdXmlOutput");
+        if (out) { out.textContent = xml; out.hidden = false; }
+        showVdToast("Copiez depuis le panneau ci-dessous", "warn");
+      });
+  });
+}
+
+function filterVdGrid() {
+  const query = (document.querySelector("#vdSearch")?.value || "").toLowerCase();
+  const activeChip = document.querySelector(".vd-chip.active");
+  const filter = activeChip?.dataset.filter || "all";
+  let count = 0;
+  document.querySelectorAll("[data-vcard]").forEach((card) => {
+    const matchSearch = !query || card.dataset.search.includes(query);
+    const matchFilter = filter === "all"
+      || (filter === "library" && card.dataset.source === "library")
+      || (filter === "imported" && card.dataset.source === "imported")
+      || (filter.startsWith("cat:") && card.dataset.category === filter.slice(4));
+    const show = matchSearch && matchFilter;
+    card.hidden = !show;
+    if (show) count++;
+  });
+  const empty = document.querySelector("#vdEmpty");
+  if (empty) empty.innerHTML = count === 0 ? `<div class="empty-state" style="margin-top:40px"><strong>Aucune vidéo trouvée</strong><p>Modifiez votre recherche ou filtre.</p></div>` : "";
+}
+
+function showVdToast(msg, type = "success") {
+  const toast = document.querySelector("#vdToast");
+  const msgEl = document.querySelector("#vdToastMsg");
+  const icon = document.querySelector("#vdToastIcon");
+  if (!toast || !msgEl) return;
+  msgEl.textContent = msg;
+  if (icon) icon.className = `ti ${type === "success" ? "ti-check" : "ti-alert-triangle"}`;
+  toast.className = `vd-toast ${type}`;
+  void toast.offsetWidth;
+  toast.classList.add("show");
+  clearTimeout(toast._tt);
+  toast._tt = setTimeout(() => toast.classList.remove("show"), 2600);
+}
+
+function addVideoToPlaylist(video, targetPlaylistId) {
+  const target = getPlaylist(targetPlaylistId);
+  if (!target) return { added: false, message: "Playlist introuvable" };
+  if (target.videos.some((v) => v.youtubeId === video.youtubeId)) {
+    return { added: false, message: `Déjà dans « ${target.title} »` };
+  }
+  target.videos.push({
+    id: video.id || `v-${Date.now()}`,
+    youtubeId: video.youtubeId,
+    title: video.title,
+    description: video.description || "",
+    duration: video.duration || "",
+    level: video.level || target.level || "Débutant",
+    tags: Array.isArray(video.tags) ? video.tags : [],
+  });
+  saveLibraryOverride();
+  return { added: true, message: `Ajouté à « ${target.title} » ✓` };
 }
 
 function renderFilteredVideoList() {
@@ -1175,6 +2012,60 @@ function bindFiles() {
   });
   document.querySelector("#exportWorkspace")?.addEventListener("click", () => showExport("#workspaceOutput", exportWorkspaceXml()));
   bindExportActions();
+
+  document.querySelector("#rfTypeFilter")?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-rf-type]");
+    if (!btn) return;
+    document.querySelectorAll("#rfTypeFilter .tab-btn").forEach((b) => b.classList.toggle("active", b === btn));
+    const type = btn.dataset.rfType;
+    document.querySelectorAll("[data-rf-row]").forEach((row) => { row.hidden = type !== "all" && row.dataset.rfType !== type; });
+  });
+
+  const dropzone = document.querySelector("#rfDropzone");
+  if (dropzone) {
+    dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("drag-over"); });
+    dropzone.addEventListener("dragleave", () => dropzone.classList.remove("drag-over"));
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("drag-over");
+      const files = [...(e.dataTransfer?.files || [])];
+      if (!files.length) return;
+      const additions = readJson(APP.storage.files, []);
+      let added = 0;
+      files.forEach((file) => {
+        const id = slug(file.name) + "-" + Date.now();
+        if (state.realFiles.some((f) => f.title === file.name)) return;
+        const type = realFileTypeFromMime(file.type, file.name);
+        const entry = { id, title: file.name, description: "", path: `data/files/${file.name}`, type, size: formatFileSize(file.size), date: new Date().toISOString().slice(0, 10), local: true };
+        additions.push(entry);
+        state.realFiles.push(entry);
+        added++;
+      });
+      saveJson(APP.storage.files, additions);
+      if (added > 0) {
+        document.querySelector("#rfList").innerHTML = state.realFiles.map(realFileRow).join("");
+        showFilesToast(`${added} fichier(s) enregistré(s). Copiez-les dans data/files/ et committez.`, "warn");
+      }
+    });
+  }
+}
+
+function showFilesToast(msg, type = "success") {
+  let toast = document.querySelector("#filesToast");
+  if (!toast) {
+    toast = Object.assign(document.createElement("div"), { id: "filesToast" });
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.className = `vd-toast ${type} show`;
+  clearTimeout(toast._tt);
+  toast._tt = setTimeout(() => toast.classList.remove("show"), 3500);
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function filterFiles() {
@@ -1333,7 +2224,7 @@ function fillPlaylistForm(id) {
   const list = id && id !== "__new__" ? getPlaylist(id) : null;
   form.elements.id.value = list?.id || "__new__";
   form.elements.title.value = list?.title || "";
-  form.elements.category.value = list?.category || state.categories[0]?.id || "";
+  form.elements.category.value = list?.category || "";
   form.elements.level.value = list?.level || "Débutant";
   form.elements.tags.value = list?.tags?.join(", ") || "";
   form.elements.description.value = list?.description || "";
@@ -1348,7 +2239,10 @@ function fillVideoForm(playlistId, videoId) {
   form.elements.id.value = video?.id || "__new__";
   form.elements.title.value = video?.title || "";
   form.elements.youtube.value = video?.youtubeId || "";
+  form.elements.targetCategoryId.value = playlist?.category || state.categories[0]?.id || "";
   form.elements.targetPlaylistId.value = playlist?.id || "";
+  form.elements.newCategoryTitle.value = "";
+  form.elements.newPlaylistTitle.value = "";
   form.elements.duration.value = video?.duration || "0:00";
   form.elements.level.value = video?.level || playlist?.level || "Débutant";
   form.elements.tags.value = video?.tags?.join(", ") || "";
@@ -1410,6 +2304,46 @@ function adminCollection(kind, parentId = "") {
   return [];
 }
 
+function resolveTargetPlaylist(form, fallbackCategoryId) {
+  const playlistId = form.get("targetPlaylistId") || form.get("playlistId");
+  if (playlistId && playlistId !== "__new__") return getPlaylist(playlistId);
+  const categoryId = resolveTargetCategoryId(form, fallbackCategoryId);
+  const title = clean(form.get("newPlaylistTitle")) || `À organiser — ${categoryName(categoryId)}`;
+  const playlist = {
+    id: uniqueAdminId(slug(title), state.playlists),
+    title,
+    description: "Playlist créée localement depuis l'administration.",
+    category: categoryId,
+    level: "À classer",
+    tags: ["Organisation"],
+    videos: []
+  };
+  state.playlists.push(playlist);
+  return playlist;
+}
+
+function resolveTargetCategoryId(form, fallbackCategoryId) {
+  const requested = form.get("categoryId") || form.get("targetCategoryId");
+  if (requested && requested !== "__new__") return requested;
+  const title = clean(form.get("newCategoryTitle")) || "Nouvelle catégorie";
+  const id = uniqueAdminId(slug(title), state.categories);
+  state.categories.push({
+    id,
+    title,
+    icon: title.slice(0, 2),
+    color: "cyan",
+    description: "Catégorie créée localement depuis l'administration."
+  });
+  return id || fallbackCategoryId || state.categories[0]?.id;
+}
+
+function setAdminNotice(form, message) {
+  const notice = form?.querySelector("[data-admin-notice]");
+  if (!notice) return;
+  notice.hidden = false;
+  notice.textContent = message;
+}
+
 function normalizeYoutubeId(input) {
   const value = String(input || "").trim();
   if (/^[a-zA-Z0-9_-]{11}$/.test(value)) return value;
@@ -1435,6 +2369,7 @@ function importedAdminRow(video) {
 
 function allVideos() { return state.playlists.flatMap((list) => list.videos.map((video) => ({ ...video, tags: video.tags || [], playlistId: list.id, playlistTitle: list.title, category: video.category || list.category, imported: Boolean(video.imported || list.imported) }))); }
 function regularPlaylists() { return state.playlists.filter((list) => !list.imported); }
+function organizedVideosForAdmin() { return allVideos().filter((video) => !video.imported); }
 function importedVideosForUi() { return allVideos().filter((video) => video.imported && video.youtubeId); }
 function unorganizedImportedVideos() {
   const organizedIds = new Set(regularPlaylists().flatMap((list) => list.videos.map((video) => video.youtubeId).filter(Boolean)));

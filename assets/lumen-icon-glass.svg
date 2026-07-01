@@ -1,0 +1,57 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Lumen">
+  <defs>
+    <radialGradient id="bg" cx="46%" cy="34%" r="78%">
+      <stop offset="0%" stop-color="#191b22"/>
+      <stop offset="62%" stop-color="#0a0b0f"/>
+      <stop offset="100%" stop-color="#050508"/>
+    </radialGradient>
+    <linearGradient id="chromeV" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="20%" stop-color="#c9b6ff"/>
+      <stop offset="42%" stop-color="#6E56F7"/>
+      <stop offset="55%" stop-color="#1a1430"/>
+      <stop offset="70%" stop-color="#5a45d8"/>
+      <stop offset="88%" stop-color="#c7f3ee"/>
+      <stop offset="100%" stop-color="#3FD8C7"/>
+    </linearGradient>
+    <linearGradient id="chromeC" x1="0" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="22%" stop-color="#a8f0e8"/>
+      <stop offset="44%" stop-color="#3FD8C7"/>
+      <stop offset="56%" stop-color="#0c2420"/>
+      <stop offset="72%" stop-color="#9d8bff"/>
+      <stop offset="90%" stop-color="#d8d0ff"/>
+      <stop offset="100%" stop-color="#6E56F7"/>
+    </linearGradient>
+    <radialGradient id="glass" cx="42%" cy="32%" r="80%">
+      <stop offset="0%" stop-color="#1c1f2b"/>
+      <stop offset="55%" stop-color="#0c0d14"/>
+      <stop offset="100%" stop-color="#060609"/>
+    </radialGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+
+  <g transform="translate(256 256)">
+    <circle cx="0" cy="0" r="150" fill="url(#glass)"/>
+    <circle cx="0" cy="0" r="150" fill="none" stroke="url(#chromeV)" stroke-width="27"/>
+    <circle cx="0" cy="0" r="150" fill="none" stroke="#ffffff" stroke-width="2.5" opacity="0.22"/>
+    <circle cx="0" cy="0" r="123" fill="none" stroke="#000000" stroke-width="3.5" opacity="0.5"/>
+
+    <g opacity="0.85">
+      <path d="M0 0 L0 -104 L86 -59 Z" fill="#2a2440"/>
+      <path d="M0 0 L86 -59 L93 54 Z" fill="#1e1a30"/>
+      <path d="M0 0 L93 54 L0 104 Z" fill="#16202a"/>
+      <path d="M0 0 L0 104 L-93 54 Z" fill="#101822"/>
+      <path d="M0 0 L-93 54 L-86 -59 Z" fill="#1a1628"/>
+      <path d="M0 0 L-86 -59 L0 -104 Z" fill="#241f38"/>
+    </g>
+
+    <circle cx="0" cy="0" r="29" fill="url(#glass)" stroke="url(#chromeC)" stroke-width="9"/>
+    <ellipse cx="-40" cy="-82" rx="60" ry="24" fill="url(#gloss)" opacity="0.5"/>
+  </g>
+</svg>

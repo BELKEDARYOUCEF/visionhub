@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lumen — Aperçu complet du projet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/2.47.0/tabler-icons.min.css">
+<style>
+:root{
+  --bg:#0A0B0F;--bg-soft:#101218;--surface:#15171F;--surface-2:#1B1E28;--surface-3:#222633;
+  --line:rgba(255,255,255,0.07);--line-2:rgba(255,255,255,0.13);
+  --text:#F4F5F7;--text-2:#9CA0AD;--text-3:#5F6373;
+  --accent:#6E56F7;--accent-2:#9D8BFF;--cyan:#3FD8C7;--amber:#F5A524;--rose:#F76E7E;--green:#54D188;
+  --r:14px;--r-lg:18px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4,.f{font-family:'Sora',sans-serif;letter-spacing:-0.02em}
+.mono{font-family:'JetBrains Mono',monospace}
+.wrap{max-width:1100px;margin:0 auto;padding:0 28px}
+::selection{background:rgba(110,86,247,0.35)}
+
+.topbar{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:14px 28px;background:rgba(10,11,15,0.82);backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
+.tb-brand{display:flex;align-items:center;gap:10px;font-family:'Sora';font-weight:600;font-size:16px}
+.tb-mark{width:30px;height:30px;border-radius:8px;overflow:hidden}
+.tb-mark svg{width:100%;height:100%}
+.tb-links{display:flex;gap:20px;font-size:13.5px}
+.tb-links a{color:var(--text-2);text-decoration:none;transition:color .2s}
+.tb-links a:hover{color:var(--text)}
+@media(max-width:720px){.tb-links{display:none}}
+
+.hero{text-align:center;padding:80px 28px 60px;position:relative;overflow:hidden}
+.hero-logo{width:min(520px,90%);height:auto;margin:0 auto 30px;display:block}
+.hero .tag{display:inline-flex;align-items:center;gap:8px;padding:7px 15px;border:1px solid var(--line-2);border-radius:100px;background:rgba(255,255,255,0.03);font-size:13px;color:var(--text-2);margin-bottom:24px}
+.hero .tag .dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
+.hero h1{font-size:clamp(30px,5vw,46px);font-weight:600;margin-bottom:16px;line-height:1.1}
+.hero h1 .grad{background:linear-gradient(120deg,var(--accent-2),var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{color:var(--text-2);max-width:620px;margin:0 auto;font-size:17px}
+
+.section{padding:56px 0;border-top:1px solid var(--line)}
+.sec-label{font-size:12px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:var(--accent-2);margin-bottom:10px}
+.sec-title{font-size:clamp(24px,3.5vw,32px);font-weight:600;margin-bottom:8px}
+.sec-intro{color:var(--text-2);max-width:640px;margin-bottom:34px;font-size:16px}
+
+.logo-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:18px}
+@media(max-width:760px){.logo-grid{grid-template-columns:1fr}}
+.logo-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:34px;display:flex;align-items:center;justify-content:center;min-height:150px}
+.logo-card.dark{background:#060709}
+.logo-card.light{background:#F4F5F7}
+.logo-card svg{max-width:100%;height:auto}
+.logo-mini-row{display:flex;gap:14px;flex-wrap:wrap;margin-top:18px;align-items:center}
+.logo-mini-row .swatch{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--text-2);font-family:'JetBrains Mono'}
+.logo-mini-row .sw{width:26px;height:26px;border-radius:7px;border:1px solid var(--line)}
+
+.pages-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+@media(max-width:760px){.pages-grid{grid-template-columns:1fr}}
+.page-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;transition:transform .25s,border-color .25s}
+.page-card:hover{transform:translateY(-3px);border-color:var(--line-2)}
+.page-shot{height:200px;background:var(--bg-soft);position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
+.page-body{padding:18px 20px}
+.page-body .ph{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+.page-body .ph i{font-size:19px;color:var(--accent-2)}
+.page-body h3{font-size:17px;font-weight:600}
+.page-body p{font-size:13.5px;color:var(--text-2)}
+.page-tag{position:absolute;top:12px;left:12px;z-index:3;font-size:11px;font-weight:600;padding:4px 10px;border-radius:7px;background:rgba(10,11,15,0.7);backdrop-filter:blur(6px);color:var(--accent-2)}
+
+/* mini mockup illustrations inside page-shot */
+.mk{position:absolute;inset:0;padding:14px}
+.mk-row{display:flex;gap:6px;margin-bottom:6px}
+.mk-box{background:var(--surface-2);border:1px solid var(--line);border-radius:6px}
+.mk-accent{background:linear-gradient(135deg,var(--accent),var(--cyan))}
+.mk-side{position:absolute;left:0;top:0;bottom:0;width:46px;background:var(--surface);border-right:1px solid var(--line);padding:10px 7px;display:flex;flex-direction:column;gap:6px}
+.mk-dot{height:7px;border-radius:3px;background:var(--surface-3)}
+.mk-card{background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.mk-thumb{height:38px;background:linear-gradient(135deg,#1e2230,#2a2f42)}
+.mk-line{height:5px;border-radius:3px;background:var(--surface-3);margin:5px 6px}
+
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:860px){.feat-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.feat-grid{grid-template-columns:1fr}}
+.feat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px}
+.feat .fi{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px;background:rgba(110,86,247,0.12);color:var(--accent-2);border:1px solid rgba(110,86,247,0.2)}
+.feat h4{font-size:15.5px;font-weight:600;margin-bottom:6px}
+.feat p{font-size:13px;color:var(--text-2)}
+
+.flow{display:flex;flex-direction:column;gap:0}
+.phase{display:grid;grid-template-columns:130px 1fr;gap:20px;padding:22px 0;border-bottom:1px solid var(--line)}
+.phase:last-child{border-bottom:none}
+@media(max-width:620px){.phase{grid-template-columns:1fr;gap:10px}}
+.phase-tag{font-family:'Sora';font-weight:600}
+.phase-tag .pn{font-size:13px;color:var(--accent-2);letter-spacing:0.1em}
+.phase-tag .pt{font-size:18px;margin-top:2px}
+.phase-tag .pst{font-size:12px;color:var(--text-3);margin-top:4px;font-family:'Inter';font-weight:400}
+.task-list{display:flex;flex-direction:column;gap:8px}
+.task{display:flex;align-items:flex-start;gap:11px;font-size:14px}
+.task .tn{flex-shrink:0;width:30px;height:22px;border-radius:6px;background:var(--surface-2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;color:var(--text-2);font-family:'JetBrains Mono'}
+.task .tt{color:var(--text-2)}
+.task .tt b{color:var(--text);font-weight:500}
+
+.stack-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+@media(max-width:760px){.stack-grid{grid-template-columns:1fr 1fr}}
+.stk{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;text-align:center}
+.stk i{font-size:26px;color:var(--cyan);margin-bottom:10px;display:block}
+.stk h4{font-size:14.5px;font-weight:600;margin-bottom:4px}
+.stk p{font-size:12px;color:var(--text-3)}
+
+.cta{text-align:center;padding:70px 28px;border-top:1px solid var(--line)}
+.cta h2{font-size:clamp(24px,4vw,34px);font-weight:600;margin-bottom:12px}
+.cta p{color:var(--text-2);margin-bottom:6px}
+footer{padding:30px;text-align:center;color:var(--text-3);font-size:13px;border-top:1px solid var(--line)}
+
+/* ---- mouse-follow background glow ---- */
+#bg-glow{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+#bg-glow .orb{position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(110,86,247,0.13),transparent 62%);transform:translate(-50%,-50%);transition:opacity .5s}
+.topbar,.hero,.section,.cta,footer{position:relative;z-index:1}
+
+/* ---- scroll reveal (effet slide qui monte en fondu) ---- */
+.reveal{opacity:0;transform:translateY(34px);transition:opacity .75s cubic-bezier(.2,.7,.3,1),transform .75s cubic-bezier(.2,.7,.3,1)}
+.reveal.in{opacity:1;transform:none}
+.reveal.d1{transition-delay:.06s}.reveal.d2{transition-delay:.12s}.reveal.d3{transition-delay:.18s}
+.reveal.d4{transition-delay:.24s}.reveal.d5{transition-delay:.30s}.reveal.d6{transition-delay:.36s}
+
+/* ---- hero entrance ---- */
+.hero-logo,.hero .tag,.hero h1,.hero p{opacity:0;transform:translateY(22px);animation:heroIn .9s cubic-bezier(.2,.7,.3,1) forwards}
+.hero .tag{animation-delay:.15s}.hero h1{animation-delay:.28s}.hero p{animation-delay:.42s}
+@keyframes heroIn{to{opacity:1;transform:none}}
+
+/* ---- card spotlight on hover ---- */
+.page-card,.feat,.stk,.logo-card{position:relative;overflow:hidden}
+.page-card::before,.feat::before,.stk::before{content:"";position:absolute;inset:0;border-radius:inherit;background:radial-gradient(380px circle at var(--mx,50%) var(--my,50%),rgba(110,86,247,0.10),transparent 42%);opacity:0;transition:opacity .3s;pointer-events:none;z-index:0}
+.page-card:hover::before,.feat:hover::before,.stk:hover::before{opacity:1}
+.feat>*,.stk>*{position:relative;z-index:1}
+
+@media(prefers-reduced-motion:reduce){
+  .reveal{opacity:1;transform:none;transition:none}
+  .hero-logo,.hero .tag,.hero h1,.hero p{opacity:1;transform:none;animation:none}
+  #bg-glow{display:none}
+}
+</style>
+</head>
+<body>
+<div id="bg-glow"><div class="orb" id="orb"></div></div>
+
+<div class="topbar">
+  <div class="tb-brand">
+    <span class="tb-mark"><svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"><defs><radialGradient id="GB" cx="46%" cy="34%" r="78%"><stop offset="0%" stop-color="#191b22"/><stop offset="62%" stop-color="#0a0b0f"/><stop offset="100%" stop-color="#050508"/></radialGradient><linearGradient id="GCV" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="20%" stop-color="#c9b6ff"/><stop offset="42%" stop-color="#6E56F7"/><stop offset="55%" stop-color="#1a1430"/><stop offset="70%" stop-color="#5a45d8"/><stop offset="88%" stop-color="#c7f3ee"/><stop offset="100%" stop-color="#3FD8C7"/></linearGradient><linearGradient id="GCC" x1="0" y1="0" x2="0.5" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="22%" stop-color="#a8f0e8"/><stop offset="44%" stop-color="#3FD8C7"/><stop offset="56%" stop-color="#0c2420"/><stop offset="72%" stop-color="#9d8bff"/><stop offset="100%" stop-color="#6E56F7"/></linearGradient><radialGradient id="GG" cx="42%" cy="32%" r="80%"><stop offset="0%" stop-color="#1c1f2b"/><stop offset="55%" stop-color="#0c0d14"/><stop offset="100%" stop-color="#060609"/></radialGradient><linearGradient id="GL" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></linearGradient></defs><rect width="60" height="60" rx="14" fill="url(#GB)"/><circle cx="30" cy="30" r="18" fill="url(#GG)"/><circle cx="30" cy="30" r="18" fill="none" stroke="url(#GCV)" stroke-width="3.3"/><circle cx="30" cy="30" r="18" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.22"/><g opacity="0.85" transform="translate(30 30)"><path d="M0 0 L0 -12.473999999999998 L10.314 -7.074 Z" fill="#2a2440"/><path d="M0 0 L10.314 -7.074 L10.8297 7.7814000000000005 Z" fill="#1e1a30"/><path d="M0 0 L10.8297 7.7814000000000005 L0 12.473999999999998 Z" fill="#16202a"/><path d="M0 0 L0 12.473999999999998 L-10.8297 7.7814000000000005 Z" fill="#101822"/><path d="M0 0 L-10.8297 7.7814000000000005 L-10.314 -7.074 Z" fill="#1a1628"/><path d="M0 0 L-10.314 -7.074 L0 -12.473999999999998 Z" fill="#241f38"/></g><circle cx="30" cy="30" r="3.474" fill="url(#GG)" stroke="url(#GCC)" stroke-width="1.1"/><ellipse cx="25.14" cy="20.1" rx="7.2" ry="2.88" fill="url(#GL)" opacity="0.5"/></svg></span>
+    Lumen
+  </div>
+  <div class="tb-links">
+    <a href="#logo">Logo</a>
+    <a href="#pages">Pages</a>
+    <a href="#features">Fonctions</a>
+    <a href="#roadmap">Roadmap</a>
+    <a href="#stack">Technique</a>
+  </div>
+</div>
+
+<section class="hero">
+  <svg class="hero-logo" viewBox="0 0 660 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Lumen"><defs><radialGradient id="GBH" cx="46%" cy="34%" r="78%"><stop offset="0%" stop-color="#191b22"/><stop offset="62%" stop-color="#0a0b0f"/><stop offset="100%" stop-color="#050508"/></radialGradient><linearGradient id="GCVH" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="20%" stop-color="#c9b6ff"/><stop offset="42%" stop-color="#6E56F7"/><stop offset="55%" stop-color="#1a1430"/><stop offset="70%" stop-color="#5a45d8"/><stop offset="88%" stop-color="#c7f3ee"/><stop offset="100%" stop-color="#3FD8C7"/></linearGradient><linearGradient id="GCCH" x1="0" y1="0" x2="0.5" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="22%" stop-color="#a8f0e8"/><stop offset="44%" stop-color="#3FD8C7"/><stop offset="56%" stop-color="#0c2420"/><stop offset="72%" stop-color="#9d8bff"/><stop offset="100%" stop-color="#6E56F7"/></linearGradient><radialGradient id="GGH" cx="42%" cy="32%" r="80%"><stop offset="0%" stop-color="#1c1f2b"/><stop offset="55%" stop-color="#0c0d14"/><stop offset="100%" stop-color="#060609"/></radialGradient><linearGradient id="GLH" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></linearGradient></defs><circle cx="100" cy="100" r="64" fill="url(#GGH)"/><circle cx="100" cy="100" r="64" fill="none" stroke="url(#GCVH)" stroke-width="11.5"/><circle cx="100" cy="100" r="64" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.22"/><g opacity="0.85" transform="translate(100 100)"><path d="M0 0 L0 -44.16 L36.672 -24.96 Z" fill="#2a2440"/><path d="M0 0 L36.672 -24.96 L38.5056 27.456000000000003 Z" fill="#1e1a30"/><path d="M0 0 L38.5056 27.456000000000003 L0 44.16 Z" fill="#16202a"/><path d="M0 0 L0 44.16 L-38.5056 27.456000000000003 Z" fill="#101822"/><path d="M0 0 L-38.5056 27.456000000000003 L-36.672 -24.96 Z" fill="#1a1628"/><path d="M0 0 L-36.672 -24.96 L0 -44.16 Z" fill="#241f38"/></g><circle cx="100" cy="100" r="12.48" fill="url(#GGH)" stroke="url(#GCCH)" stroke-width="4"/><ellipse cx="82.72" cy="64.8" rx="25.6" ry="10.24" fill="url(#GLH)" opacity="0.5"/><text x="196" y="96" fill="#F4F5F7" font-family="Sora, sans-serif" font-size="58" font-weight="600" letter-spacing="-2">Lumen</text><text x="198" y="132" fill="#9CA0AD" font-family="Inter, sans-serif" font-size="17" font-weight="500" letter-spacing="4">KNOWLEDGE &amp; MEDIA LIBRARY</text></svg>
+  <div class="tag"><span class="dot"></span> Aperçu complet du projet</div>
+  <h1>Une bibliothèque <span class="grad">éclairée</span>, de bout en bout</h1>
+  <p>Logo, pages, fonctionnalités et plan de construction — tout le projet Lumen présenté en un coup d'œil.</p>
+</section>
+
+<section class="section" id="logo">
+  <div class="wrap">
+    <div class="sec-label reveal">Identité</div>
+    <h2 class="sec-title reveal d1">Le logo</h2>
+    <p class="sec-intro reveal d2">L'« aperture lumineuse » : un diaphragme d'objectif dont les facettes passent du violet au cyan. Il évoque la lumière (Lumen), la vidéo et l'ouverture sur le savoir.</p>
+    <div class="logo-grid">
+      <div class="logo-card dark reveal d1">
+        <svg viewBox="0 0 660 200" style="max-width:440px" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Lumen logo sombre"><defs><radialGradient id="GBCD" cx="46%" cy="34%" r="78%"><stop offset="0%" stop-color="#191b22"/><stop offset="62%" stop-color="#0a0b0f"/><stop offset="100%" stop-color="#050508"/></radialGradient><linearGradient id="GCVCD" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="20%" stop-color="#c9b6ff"/><stop offset="42%" stop-color="#6E56F7"/><stop offset="55%" stop-color="#1a1430"/><stop offset="70%" stop-color="#5a45d8"/><stop offset="88%" stop-color="#c7f3ee"/><stop offset="100%" stop-color="#3FD8C7"/></linearGradient><linearGradient id="GCCCD" x1="0" y1="0" x2="0.5" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="22%" stop-color="#a8f0e8"/><stop offset="44%" stop-color="#3FD8C7"/><stop offset="56%" stop-color="#0c2420"/><stop offset="72%" stop-color="#9d8bff"/><stop offset="100%" stop-color="#6E56F7"/></linearGradient><radialGradient id="GGCD" cx="42%" cy="32%" r="80%"><stop offset="0%" stop-color="#1c1f2b"/><stop offset="55%" stop-color="#0c0d14"/><stop offset="100%" stop-color="#060609"/></radialGradient><linearGradient id="GLCD" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></linearGradient></defs><circle cx="100" cy="100" r="64" fill="url(#GGCD)"/><circle cx="100" cy="100" r="64" fill="none" stroke="url(#GCVCD)" stroke-width="11.5"/><circle cx="100" cy="100" r="64" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.22"/><g opacity="0.85" transform="translate(100 100)"><path d="M0 0 L0 -44.16 L36.672 -24.96 Z" fill="#2a2440"/><path d="M0 0 L36.672 -24.96 L38.5056 27.456000000000003 Z" fill="#1e1a30"/><path d="M0 0 L38.5056 27.456000000000003 L0 44.16 Z" fill="#16202a"/><path d="M0 0 L0 44.16 L-38.5056 27.456000000000003 Z" fill="#101822"/><path d="M0 0 L-38.5056 27.456000000000003 L-36.672 -24.96 Z" fill="#1a1628"/><path d="M0 0 L-36.672 -24.96 L0 -44.16 Z" fill="#241f38"/></g><circle cx="100" cy="100" r="12.48" fill="url(#GGCD)" stroke="url(#GCCCD)" stroke-width="4"/><ellipse cx="82.72" cy="64.8" rx="25.6" ry="10.24" fill="url(#GLCD)" opacity="0.5"/><text x="196" y="96" fill="#F4F5F7" font-family="Sora,sans-serif" font-size="58" font-weight="600" letter-spacing="-2">Lumen</text><text x="198" y="132" fill="#9CA0AD" font-family="Inter,sans-serif" font-size="17" font-weight="500" letter-spacing="4">KNOWLEDGE &amp; MEDIA LIBRARY</text></svg>
+      </div>
+      <div class="logo-card light reveal d2">
+        <svg viewBox="0 0 200 200" style="max-width:130px" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Lumen icône"><defs><radialGradient id="GBCI" cx="46%" cy="34%" r="78%"><stop offset="0%" stop-color="#191b22"/><stop offset="62%" stop-color="#0a0b0f"/><stop offset="100%" stop-color="#050508"/></radialGradient><linearGradient id="GCVCI" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="20%" stop-color="#c9b6ff"/><stop offset="42%" stop-color="#6E56F7"/><stop offset="55%" stop-color="#1a1430"/><stop offset="70%" stop-color="#5a45d8"/><stop offset="88%" stop-color="#c7f3ee"/><stop offset="100%" stop-color="#3FD8C7"/></linearGradient><linearGradient id="GCCCI" x1="0" y1="0" x2="0.5" y2="1"><stop offset="0%" stop-color="#ffffff"/><stop offset="22%" stop-color="#a8f0e8"/><stop offset="44%" stop-color="#3FD8C7"/><stop offset="56%" stop-color="#0c2420"/><stop offset="72%" stop-color="#9d8bff"/><stop offset="100%" stop-color="#6E56F7"/></linearGradient><radialGradient id="GGCI" cx="42%" cy="32%" r="80%"><stop offset="0%" stop-color="#1c1f2b"/><stop offset="55%" stop-color="#0c0d14"/><stop offset="100%" stop-color="#060609"/></radialGradient><linearGradient id="GLCI" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/></linearGradient></defs><rect width="200" height="200" rx="46" fill="url(#GBCI)"/><circle cx="100" cy="100" r="60" fill="url(#GGCI)"/><circle cx="100" cy="100" r="60" fill="none" stroke="url(#GCVCI)" stroke-width="11"/><circle cx="100" cy="100" r="60" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.22"/><g opacity="0.85" transform="translate(100 100)"><path d="M0 0 L0 -41.4 L34.379999999999995 -23.400000000000002 Z" fill="#2a2440"/><path d="M0 0 L34.379999999999995 -23.400000000000002 L36.099 25.740000000000006 Z" fill="#1e1a30"/><path d="M0 0 L36.099 25.740000000000006 L0 41.4 Z" fill="#16202a"/><path d="M0 0 L0 41.4 L-36.099 25.740000000000006 Z" fill="#101822"/><path d="M0 0 L-36.099 25.740000000000006 L-34.379999999999995 -23.400000000000002 Z" fill="#1a1628"/><path d="M0 0 L-34.379999999999995 -23.400000000000002 L0 -41.4 Z" fill="#241f38"/></g><circle cx="100" cy="100" r="11.700000000000001" fill="url(#GGCI)" stroke="url(#GCCCI)" stroke-width="3.8"/><ellipse cx="83.8" cy="67.0" rx="24.0" ry="9.6" fill="url(#GLCI)" opacity="0.5"/></svg>
+      </div>
+    </div>
+    <div class="logo-mini-row reveal d3">
+      <span class="swatch"><span class="sw" style="background:#6E56F7"></span>#6E56F7</span>
+      <span class="swatch"><span class="sw" style="background:#9D8BFF"></span>#9D8BFF</span>
+      <span class="swatch"><span class="sw" style="background:#3FD8C7"></span>#3FD8C7</span>
+      <span class="swatch"><span class="sw" style="background:#0A0B0F"></span>#0A0B0F</span>
+      <span class="swatch"><span class="sw" style="background:#F4F5F7"></span>#F4F5F7</span>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="pages">
+  <div class="wrap">
+    <div class="sec-label reveal">Les écrans</div>
+    <h2 class="sec-title reveal d1">Toutes les pages</h2>
+    <p class="sec-intro reveal d2">Sept écrans, un même langage visuel. Voici l'aperçu de chaque page de l'application.</p>
+    <div class="pages-grid">
+
+      <div class="page-card reveal d1">
+        <div class="page-shot"><span class="page-tag">Accueil</span>
+          <div class="mk" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px">
+            <div class="mk-box mk-accent" style="width:34px;height:34px;border-radius:9px"></div>
+            <div class="mk-box" style="width:130px;height:11px;border-radius:5px;border:none;background:var(--surface-3)"></div>
+            <div class="mk-box" style="width:90px;height:8px;border-radius:4px;border:none;background:var(--surface-2)"></div>
+            <div style="display:flex;gap:6px;margin-top:4px"><div class="mk-box mk-accent" style="width:48px;height:16px;border-radius:8px"></div><div class="mk-box" style="width:48px;height:16px;border-radius:8px"></div></div>
+          </div>
+        </div>
+        <div class="page-body"><div class="ph"><i class="ti ti-home"></i><h3>Accueil</h3></div><p>Hero animé avec grille interactive à la souris, stats en direct et accès aux modules.</p></div>
+      </div>
+
+      <div class="page-card reveal d2">
+        <div class="page-shot"><span class="page-tag">Vidéos</span>
+          <div class="mk">
+            <div class="mk-side"><div class="mk-dot" style="background:var(--accent)"></div><div class="mk-dot"></div><div class="mk-dot"></div><div class="mk-dot"></div></div>
+            <div style="margin-left:54px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
+              <div class="mk-card"><div class="mk-thumb"></div><div class="mk-line" style="width:70%"></div></div>
+              <div class="mk-card"><div class="mk-thumb"></div><div class="mk-line" style="width:60%"></div></div>
+              <div class="mk-card"><div class="mk-thumb"></div><div class="mk-line" style="width:75%"></div></div>
+              <div class="mk-card"><div class="mk-thumb"></div><div class="mk-line" style="width:55%"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="page-body"><div class="ph"><i class="ti ti-player-play"></i><h3>Vidéos</h3></div><p>Dashboard avec cartes, recherche, filtres, lecteur robuste et glisser-déposer vers les playlists.</p></div>
+      </div>
+
+      <div class="page-card reveal d3">
+        <div class="page-shot"><span class="page-tag">Playlists</span>
+          <div class="mk">
+            <div class="mk-row"><div class="mk-box mk-accent" style="width:30px;height:30px;border-radius:8px"></div><div style="flex:1"><div class="mk-line" style="width:50%;margin:3px 0"></div><div class="mk-line" style="width:30%;margin:0"></div></div></div>
+            <div class="mk-row"><div class="mk-box" style="width:30px;height:30px;border-radius:8px;background:var(--cyan)"></div><div style="flex:1"><div class="mk-line" style="width:55%;margin:3px 0"></div><div class="mk-line" style="width:35%;margin:0"></div></div></div>
+            <div class="mk-row"><div class="mk-box" style="width:30px;height:30px;border-radius:8px;background:var(--amber)"></div><div style="flex:1"><div class="mk-line" style="width:45%;margin:3px 0"></div><div class="mk-line" style="width:32%;margin:0"></div></div></div>
+            <div class="mk-row"><div class="mk-box" style="width:30px;height:30px;border-radius:8px;background:var(--rose)"></div><div style="flex:1"><div class="mk-line" style="width:60%;margin:3px 0"></div><div class="mk-line" style="width:28%;margin:0"></div></div></div>
+          </div>
+        </div>
+        <div class="page-body"><div class="ph"><i class="ti ti-stack-2"></i><h3>Playlists & Administration</h3></div><p>Hiérarchie catégorie → playlist → vidéo, avec le panneau d'administration et l'export XML.</p></div>
+      </div>
+
+      <div class="page-card reveal d4">
+        <div class="page-shot"><span class="page-tag">Fichiers</span>
+          <div class="mk" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;align-content:start">
+            <div class="mk-card" style="padding:8px"><div class="mk-box mk-accent" style="width:18px;height:18px;border-radius:5px;margin-bottom:6px"></div><div class="mk-line" style="margin:0;width:80%"></div></div>
+            <div class="mk-card" style="padding:8px"><div class="mk-box" style="width:18px;height:18px;border-radius:5px;background:var(--cyan);margin-bottom:6px"></div><div class="mk-line" style="margin:0;width:70%"></div></div>
+            <div class="mk-card" style="padding:8px"><div class="mk-box" style="width:18px;height:18px;border-radius:5px;background:var(--green);margin-bottom:6px"></div><div class="mk-line" style="margin:0;width:75%"></div></div>
+            <div class="mk-card" style="padding:8px"><div class="mk-box" style="width:18px;height:18px;border-radius:5px;background:var(--amber);margin-bottom:6px"></div><div class="mk-line" style="margin:0;width:65%"></div></div>
+            <div class="mk-card" style="padding:8px"><div class="mk-box" style="width:18px;height:18px;border-radius:5px;background:var(--rose);margin-bottom:6px"></div><div class="mk-line" style="margin:0;width:78%"></div></div>
+            <div class="mk-card" style="padding:8px"><div class="mk-box" style="width:18px;height:18px;border-radius:5px;background:var(--accent-2);margin-bottom:6px"></div><div class="mk-line" style="margin:0;width:60%"></div></div>
+          </div>
+        </div>
+        <div class="page-body"><div class="ph"><i class="ti ti-folder"></i><h3>Fichiers</h3></div><p>Ressources par type — vidéos, liens, documents, notes, fichiers locaux — avec filtres et pagination.</p></div>
+      </div>
+
+      <div class="page-card reveal d5">
+        <div class="page-shot"><span class="page-tag">Finance</span>
+          <div class="mk">
+            <div class="mk-row"><div class="mk-card" style="flex:1;padding:8px"><div class="mk-line" style="margin:0 0 5px;width:40%"></div><div class="mk-line" style="margin:0;width:60%;height:9px;background:var(--green)"></div></div><div class="mk-card" style="flex:1;padding:8px"><div class="mk-line" style="margin:0 0 5px;width:40%"></div><div class="mk-line" style="margin:0;width:55%;height:9px;background:var(--rose)"></div></div></div>
+            <div class="mk-card" style="padding:8px;margin-top:4px"><div class="mk-line" style="width:30%;margin:0 0 6px"></div><div style="height:8px;border-radius:4px;background:var(--surface-3);overflow:hidden"><div style="width:62%;height:100%;background:linear-gradient(90deg,var(--accent),var(--cyan))"></div></div></div>
+            <div class="mk-card" style="padding:8px;margin-top:4px"><div class="mk-line" style="width:45%;margin:0 0 6px"></div><div style="height:8px;border-radius:4px;background:var(--surface-3);overflow:hidden"><div style="width:38%;height:100%;background:linear-gradient(90deg,var(--accent),var(--green))"></div></div></div>
+          </div>
+        </div>
+        <div class="page-body"><div class="ph"><i class="ti ti-wallet"></i><h3>Finance</h3></div><p>Suivi léger : transactions et objectifs. Volontairement simple, prêt à s'étoffer plus tard.</p></div>
+      </div>
+
+      <div class="page-card reveal d6">
+        <div class="page-shot"><span class="page-tag">Compte</span>
+          <div class="mk" style="display:flex;align-items:center;justify-content:center">
+            <div class="mk-card" style="width:160px;padding:14px;display:flex;flex-direction:column;gap:7px;align-items:center">
+              <div class="mk-box mk-accent" style="width:26px;height:26px;border-radius:50%"></div>
+              <div class="mk-line" style="width:80%;margin:0;height:8px"></div>
+              <div class="mk-box" style="width:100%;height:14px;border-radius:6px"></div>
+              <div class="mk-box" style="width:100%;height:14px;border-radius:6px"></div>
+              <div class="mk-box mk-accent" style="width:100%;height:16px;border-radius:7px;margin-top:3px"></div>
+            </div>
+          </div>
+        </div>
+        <div class="page-body"><div class="ph"><i class="ti ti-lock"></i><h3>Compte sécurisé <span style="font-size:11px;color:var(--amber);font-weight:500">· Phase C</span></h3></div><p>Connexion et inscription via Supabase. Sessions sécurisées, données privées par utilisateur.</p></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section class="section" id="features">
+  <div class="wrap">
+    <div class="sec-label reveal">Capacités</div>
+    <h2 class="sec-title reveal d1">Les fonctionnalités</h2>
+    <p class="sec-intro reveal d2">Ce que Lumen sait faire, du classement local jusqu'à la synchronisation cloud.</p>
+    <div class="feat-grid">
+      <div class="feat reveal d1"><div class="fi"><i class="ti ti-drag-drop"></i></div><h4>Glisser-déposer</h4><p>Déposez une vidéo sur une playlist depuis la barre latérale. Classement en direct, anti-doublon.</p></div>
+      <div class="feat reveal d2"><div class="fi"><i class="ti ti-wand"></i></div><h4>Classement intelligent</h4><p>Catégorie et playlist suggérées d'après le titre, les tags et la source de chaque vidéo.</p></div>
+      <div class="feat reveal d3"><div class="fi"><i class="ti ti-player-play"></i></div><h4>Lecteur robuste</h4><p>Miniature d'abord, iframe au clic, bouton « Ouvrir sur YouTube ». Fini l'erreur 153.</p></div>
+      <div class="feat reveal d4"><div class="fi"><i class="ti ti-search"></i></div><h4>Recherche & filtres</h4><p>Titres, tags, catégories, descriptions. Filtres par périmètre, source, playlist et tri.</p></div>
+      <div class="feat reveal d5"><div class="fi"><i class="ti ti-file-export"></i></div><h4>Export XML</h4><p>Toutes les modifications restent locales puis s'exportent en XML propre. Vos données restent vôtres.</p></div>
+      <div class="feat reveal d6"><div class="fi"><i class="ti ti-cloud"></i></div><h4>Sync cloud <span style="font-size:11px;color:var(--amber)">· Phase C</span></h4><p>Comptes Supabase, sauvegarde multi-appareils, et fonctionnement hors-ligne préservé.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="roadmap">
+  <div class="wrap">
+    <div class="sec-label reveal">Construction</div>
+    <h2 class="sec-title reveal d1">La roadmap, tâche par tâche</h2>
+    <p class="sec-intro reveal d2">13 tâches indépendantes, en trois phases. Du design local jusqu'au cloud sécurisé, sans jamais casser l'existant.</p>
+    <div class="flow">
+      <div class="phase reveal d1">
+        <div class="phase-tag"><div class="pn">PHASE A</div><div class="pt">Design</div><div class="pst">Local, statique</div></div>
+        <div class="task-list">
+          <div class="task"><span class="tn">A1</span><span class="tt"><b>Renommage</b> VisionHub → Lumen, avec migration douce des données.</span></div>
+          <div class="task"><span class="tn">A2</span><span class="tt"><b>Design system</b> — nouveau styles.css, palette violet-cyan, typo Sora + Inter.</span></div>
+          <div class="task"><span class="tn">A3</span><span class="tt"><b>Page d'accueil animée</b> — grille interactive à la souris, stats réelles.</span></div>
+          <div class="task"><span class="tn">A4</span><span class="tt"><b>Dashboard Vidéos</b> — sidebar, cartes, barre playlists, glisser-déposer.</span></div>
+          <div class="task"><span class="tn">A5</span><span class="tt"><b>Lecteur robuste</b> + design appliqué à toutes les pages.</span></div>
+        </div>
+      </div>
+      <div class="phase reveal d2">
+        <div class="phase-tag"><div class="pn">PHASE B</div><div class="pt">Fondations</div><div class="pst">Préparation cloud</div></div>
+        <div class="task-list">
+          <div class="task"><span class="tn">B1</span><span class="tt"><b>Couche d'accès aux données</b> unifiée, sans changer le comportement.</span></div>
+          <div class="task"><span class="tn">B2</span><span class="tt"><b>Modèle de données</b> cible + schéma SQL Supabase (documentation).</span></div>
+        </div>
+      </div>
+      <div class="phase reveal d3">
+        <div class="phase-tag"><div class="pn">PHASE C</div><div class="pt">Cloud</div><div class="pst">Comptes + sync</div></div>
+        <div class="task-list">
+          <div class="task"><span class="tn">C1</span><span class="tt"><b>Connexion Supabase</b> — SDK branché, mode local préservé.</span></div>
+          <div class="task"><span class="tn">C2</span><span class="tt"><b>Authentification</b> — création de compte, connexion, session.</span></div>
+          <div class="task"><span class="tn">C3</span><span class="tt"><b>Tables + RLS</b> — chaque utilisateur ne voit que ses données.</span></div>
+          <div class="task"><span class="tn">C4</span><span class="tt"><b>Migration locale → cloud</b>, dédupliquée et idempotente.</span></div>
+          <div class="task"><span class="tn">C5</span><span class="tt"><b>Synchronisation</b> local ↔ cloud, sûre hors-ligne.</span></div>
+          <div class="task"><span class="tn">C6</span><span class="tt"><b>Finitions</b> — sécurité, accessibilité, tests, documentation.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="stack">
+  <div class="wrap">
+    <div class="sec-label reveal">Sous le capot</div>
+    <h2 class="sec-title reveal d1">La technique</h2>
+    <p class="sec-intro reveal d2">Une base statique qui reste sur GitHub Pages, enrichie d'une couche cloud optionnelle.</p>
+    <div class="stack-grid">
+      <div class="stk reveal d1"><i class="ti ti-brand-html5"></i><h4>HTML / CSS / JS</h4><p>Vanilla, sans build</p></div>
+      <div class="stk reveal d2"><i class="ti ti-file-code"></i><h4>XML + localStorage</h4><p>Source locale, hors-ligne</p></div>
+      <div class="stk reveal d3"><i class="ti ti-brand-github"></i><h4>GitHub Pages</h4><p>Hébergement statique</p></div>
+      <div class="stk reveal d4"><i class="ti ti-database"></i><h4>Supabase</h4><p>Comptes + cloud (Phase C)</p></div>
+    </div>
+  </div>
+</section>
+
+<div class="cta reveal">
+  <h2>Tout est prêt à être construit</h2>
+  <p>Le design, le logo, le plan détaillé et la voie cloud sont posés.</p>
+  <p style="color:var(--text-3);font-size:13px;margin-top:14px">Prochaine étape : lancer la tâche A1 dans Claude Code.</p>
+</div>
+
+<footer>Lumen — Aperçu du projet · Conçu pour organiser ce que vous regardez</footer>
+
+<script>
+(function(){
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // --- scroll reveal (effet slide qui monte en fondu) ---
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+    });
+  }, {threshold:0.14, rootMargin:'0px 0px -40px 0px'});
+  document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+
+  if(reduced) return;
+
+  // --- background glow follows the mouse (smooth) ---
+  var orb = document.getElementById('orb');
+  var tx = innerWidth/2, ty = innerHeight*0.3, x = tx, y = ty;
+  addEventListener('mousemove', function(e){ tx = e.clientX; ty = e.clientY; });
+  (function loop(){
+    x += (tx - x) * 0.06; y += (ty - y) * 0.06;
+    if(orb){ orb.style.left = x + 'px'; orb.style.top = y + 'px'; }
+    requestAnimationFrame(loop);
+  })();
+
+  // --- card spotlight (suit la souris sur chaque carte) ---
+  document.querySelectorAll('.page-card,.feat,.stk').forEach(function(c){
+    c.addEventListener('mousemove', function(e){
+      var r = c.getBoundingClientRect();
+      c.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+      c.style.setProperty('--my', (e.clientY - r.top) + 'px');
+    });
+  });
+
+  // --- topbar gets a subtle border on scroll ---
+  var tb = document.querySelector('.topbar');
+  addEventListener('scroll', function(){
+    if(scrollY > 20){ tb.style.borderBottomColor = 'rgba(255,255,255,0.13)'; }
+    else { tb.style.borderBottomColor = 'rgba(255,255,255,0.07)'; }
+  });
+})();
+</script>
+</body>
+</html>
